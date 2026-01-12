@@ -1,0 +1,239 @@
+{
+  "nodes": [
+    {
+      "id": "ADR-0002",
+      "type": "adr",
+      "label": "CEREBRO como Camada Central de Knowledge Management",
+      "status": "accepted",
+      "projects": [
+        "CEREBRO",
+        "GLOBAL"
+      ]
+    },
+    {
+      "id": "ADR-0004",
+      "type": "adr",
+      "label": "PHANTOM como Framework de Classificação ML e Pipeline ETL",
+      "status": "accepted",
+      "projects": [
+        "PHANTOM",
+        "GLOBAL"
+      ]
+    },
+    {
+      "id": "ADR-0005",
+      "type": "adr",
+      "label": "NEUTRON como Camada de Infraestrutura Core",
+      "status": "accepted",
+      "projects": [
+        "NEUTRON",
+        "GLOBAL"
+      ]
+    },
+    {
+      "id": "ADR-0003",
+      "type": "adr",
+      "label": "SPECTRE como Motor de Extração de Padrões e Sentimentos",
+      "status": "accepted",
+      "projects": [
+        "SPECTRE",
+        "GLOBAL"
+      ]
+    },
+    {
+      "id": "ADR-0001",
+      "type": "adr",
+      "label": "Git como Sistema Operacional para Decisões Arquiteturais",
+      "status": "accepted",
+      "projects": [
+        "GLOBAL",
+        "SPECTRE",
+        "PHANTOM",
+        "CEREBRO",
+        "NEUTRON"
+      ]
+    },
+    {
+      "id": "PROJECT:NEUTRON",
+      "type": "project",
+      "label": "NEUTRON"
+    },
+    {
+      "id": "PROJECT:CEREBRO",
+      "type": "project",
+      "label": "CEREBRO"
+    },
+    {
+      "id": "PROJECT:GLOBAL",
+      "type": "project",
+      "label": "GLOBAL"
+    },
+    {
+      "id": "PROJECT:PHANTOM",
+      "type": "project",
+      "label": "PHANTOM"
+    },
+    {
+      "id": "PROJECT:SPECTRE",
+      "type": "project",
+      "label": "SPECTRE"
+    }
+  ],
+  "edges": [
+    {
+      "source": "ADR-0002",
+      "target": "ADR-0001",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0002",
+      "target": "ADR-0003",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0002",
+      "target": "ADR-0004",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0002",
+      "target": "ADR-0005",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0002",
+      "target": "PROJECT:CEREBRO",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0002",
+      "target": "PROJECT:GLOBAL",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0004",
+      "target": "ADR-0001",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0004",
+      "target": "ADR-0002",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0004",
+      "target": "ADR-0003",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0004",
+      "target": "ADR-0005",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0004",
+      "target": "PROJECT:PHANTOM",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0004",
+      "target": "PROJECT:GLOBAL",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0005",
+      "target": "ADR-0001",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0005",
+      "target": "ADR-0002",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0005",
+      "target": "ADR-0003",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0005",
+      "target": "ADR-0004",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0005",
+      "target": "PROJECT:NEUTRON",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0005",
+      "target": "PROJECT:GLOBAL",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0003",
+      "target": "ADR-0001",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0003",
+      "target": "ADR-0002",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0003",
+      "target": "PROJECT:SPECTRE",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0003",
+      "target": "PROJECT:GLOBAL",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0001",
+      "target": "ADR-0002",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0001",
+      "target": "ADR-0003",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0001",
+      "target": "ADR-0004",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0001",
+      "target": "ADR-0005",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0001",
+      "target": "PROJECT:GLOBAL",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0001",
+      "target": "PROJECT:SPECTRE",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0001",
+      "target": "PROJECT:PHANTOM",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0001",
+      "target": "PROJECT:CEREBRO",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0001",
+      "target": "PROJECT:NEUTRON",
+      "type": "belongs_to"
+    }
+  ]
+}

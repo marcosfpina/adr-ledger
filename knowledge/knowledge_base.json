@@ -1,0 +1,761 @@
+{
+  "meta": {
+    "type": "adr_knowledge_base",
+    "version": "1.0",
+    "generated_at": "2026-01-10T20:54:33.421092",
+    "total_decisions": 5,
+    "by_status": {
+      "accepted": 5
+    },
+    "by_project": {
+      "CEREBRO": 2,
+      "GLOBAL": 5,
+      "PHANTOM": 2,
+      "NEUTRON": 2,
+      "SPECTRE": 2
+    }
+  },
+  "decisions": [
+    {
+      "id": "ADR-0002",
+      "type": "architecture_decision",
+      "title": "CEREBRO como Camada Central de Knowledge Management",
+      "status": "accepted",
+      "summary": "[ADR-0002] CEREBRO como Camada Central de Knowledge Management: CEREBRO implementa **Retrieval Augmented Generation** com:\n\n```\n┌───────────────────────────────────...",
+      "scope": {
+        "projects": [
+          "CEREBRO",
+          "GLOBAL"
+        ],
+        "layers": [
+          "data",
+          "ml",
+          "api"
+        ]
+      },
+      "knowledge": {
+        "what": "CEREBRO implementa **Retrieval Augmented Generation** com:\n\n```\n┌─────────────────────────────────────────────────────────────┐\n│                      CEREBRO Architecture                    │\n├─────────────────────────────────────────────────────────────┤\n│                                                              │\n│  ┌──────────┐    ┌──────────┐    ┌──────────┐              │\n│  │  Ingest  │───▶│  Index   │───▶│  Store   │              │\n│  │ Pipeline │    │ (Chunk)  │    │ (Vector) │              │\n│  └──────────┘    └──────────┘    └──────────┘              │\n│       ▲                               │                     │\n│       │                               ▼                     │\n│  ┌──────────┐    ┌──────────┐    ┌──────────┐              │\n│  │   ADR    │    │  Query   │◀───│ Retrieve │              │\n│  │  Ledger  │    │   API    │    │ (Top-K)  │              │\n│  └──────────┘    └──────────┘    └──────────┘              │\n│                       │                                     │\n│                       ▼                                     │\n│              ┌──────────────┐                               │\n│              │   Generate   │                               │\n│              │ (LLM + Ctx)  │                               │\n│              └──────────────┘                               │\n│                                                              │\n└─────────────────────────────────────────────────────────────┘\n```\n\n### Componentes\n\n1. **Ingest Pipeline**: Consome ADRs, docs, código\n2. **Chunking**: Estratégia semântica (não fixed-size)\n3. **Embedding**: text-embedding-3-large (1536 dims)\n4. **Vector Store**: pgvector (PostgreSQL) ou Qdrant\n5. **Query API**: REST + gRPC para outros sistemas\n6. **Generation**: LLM com context injetado\n\n### Auto-Ingestão de ADRs\n\nQuando `adr sync` executa:\n```bash\n# 1. Parser gera knowledge_base.json\n# 2. CEREBRO detecta mudança (inotify/polling)\n# 3. Chunks novos/modificados são re-indexed\n# 4. Cache invalidado para queries afetadas\n```",
+        "why": "CEREBRO é o \"cérebro\" da stack - a camada que transforma dados brutos em knowledge acionável. Sem ele, cada sistema opera em silo, sem contexto compartilhado.\n\nO problema: LLMs têm context window limitado. Não podemos injetar todo o knowledge base em cada prompt. RAG resolve isso via retrieval semântico.",
+        "implications": {
+          "positive": [
+            "Knowledge updates propagam em minutos, não semanas",
+            "Auditoria clara: cada resposta tem fontes rastreáveis",
+            "Escala horizontalmente com mais chunks",
+            "94% de accuracy em retrieval (benchmark interno)"
+          ],
+          "negative": [
+            "Requer manutenção de vector store",
+            "Chunking strategy afeta qualidade",
+            "Dependência de embedding model quality"
+          ]
+        },
+        "alternatives_rejected": [
+          "Fine-tuning de modelos",
+          "Pure prompt engineering"
+        ]
+      },
+      "questions": [
+        "Como os agentes acessam knowledge contextual?",
+        "Qual a arquitetura do sistema de RAG?",
+        "Como garantimos accuracy no retrieval?",
+        "Como CEREBRO se integra com outros sistemas?"
+      ],
+      "keywords": [
+        "RAG",
+        "CEREBRO",
+        "knowledge management",
+        "vector search",
+        "embeddings",
+        "retrieval"
+      ],
+      "concepts": [
+        "Retrieval Augmented Generation",
+        "Semantic Search",
+        "Knowledge Graph",
+        "Proactive Learning"
+      ],
+      "relations": {
+        "supersedes": [],
+        "related": [
+          "ADR-0001"
+        ],
+        "enables": [
+          "ADR-0003",
+          "ADR-0004",
+          "ADR-0005"
+        ]
+      },
+      "governance": {
+        "classification": "critical",
+        "compliance": [
+          "RAG",
+          "KNOWLEDGE",
+          "AI"
+        ]
+      },
+      "metadata": {
+        "date": "2025-01-10",
+        "version": 1,
+        "hash": "8d716857093d",
+        "embedding_priority": "critical"
+      }
+    },
+    {
+      "id": "ADR-0004",
+      "type": "architecture_decision",
+      "title": "PHANTOM como Framework de Classificação ML e Pipeline ETL",
+      "status": "accepted",
+      "summary": "[ADR-0004] PHANTOM como Framework de Classificação ML e Pipeline ETL: PHANTOM implementa uma arquitetura de **pipeline declarativo**:\n\n```\n┌──────────────────────────────...",
+      "scope": {
+        "projects": [
+          "PHANTOM",
+          "GLOBAL"
+        ],
+        "layers": [
+          "data",
+          "ml",
+          "infrastructure"
+        ]
+      },
+      "knowledge": {
+        "what": "PHANTOM implementa uma arquitetura de **pipeline declarativo**:\n\n```\n┌──────────────────────────────────────────────────────────────┐\n│                    PHANTOM Architecture                       │\n├──────────────────────────────────────────────────────────────┤\n│                                                               │\n│  Sources                                                      │\n│  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐             │\n│  │  APIs  │  │ Files  │  │ Streams│  │ Events │             │\n│  └───┬────┘  └───┬────┘  └───┬────┘  └───┬────┘             │\n│      │           │           │           │                    │\n│      └───────────┴───────────┴───────────┘                    │\n│                        │                                       │\n│  ┌─────────────────────▼─────────────────────┐                │\n│  │              EXTRACTION LAYER              │                │\n│  │  • Connectors (REST, gRPC, S3, Kafka)     │                │\n│  │  • Schema detection                        │                │\n│  │  • Incremental sync                        │                │\n│  └─────────────────────┬─────────────────────┘                │\n│                        │                                       │\n│  ┌─────────────────────▼─────────────────────┐                │\n│  │             TRANSFORM LAYER                │                │\n│  │                                            │                │\n│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐  │                │\n│  │  │ Sanitize │ │ Classify │ │ Enrich   │  │                │\n│  │  │          │ │          │ │          │  │                │\n│  │  │• PII rem │ │• ML model│ │• Metadata│  │                │\n│  │  │• Normalize│ │• Rules  │ │• Links   │  │                │\n│  │  │• Validate│ │• Hybrid  │ │• Context │  │                │\n│  │  └──────────┘ └──────────┘ └──────────┘  │                │\n│  │                                            │                │\n│  └─────────────────────┬─────────────────────┘                │\n│                        │                                       │\n│  ┌─────────────────────▼─────────────────────┐                │\n│  │               LOAD LAYER                   │                │\n│  │  • CEREBRO (knowledge_base.json)          │                │\n│  │  • SPECTRE (spectre_corpus.json)          │                │\n│  │  • Databases (PostgreSQL, Vector stores)  │                │\n│  │  • Data Lake (S3/MinIO)                   │                │\n│  └───────────────────────────────────────────┘                │\n│                                                               │\n│  ┌───────────────────────────────────────────┐                │\n│  │            ORCHESTRATION LAYER             │                │\n│  │  • DAG definition (YAML/Python)           │                │\n│  │  • Scheduling (cron, event-driven)        │                │\n│  │  • Retry logic + circuit breakers         │                │\n│  │  • Observability (metrics, traces)        │                │\n│  └───────────────────────────────────────────┘                │\n└──────────────────────────────────────────────────────────────┘\n```\n\n### Intelligence Layer\n\nO diferencial do PHANTOM é a **Intelligence Layer** que adiciona reasoning antes de executar:\n\n```python\nclass PhantomRouter:\n    \"\"\"\n    Analisa query/task e decide o melhor caminho de execução.\n    Evita trabalho redundante via shared context.\n    \"\"\"\n    \n    def route(self, task: Task) -> ExecutionPlan:\n        # 1. Analisa intent\n        intent = self.analyze_intent(task)\n        \n        # 2. Checa cache de resultados similares\n        if cached := self.check_cache(intent):\n            return CachedPlan(cached)\n        \n        # 3. Decompõe em subtasks\n        subtasks = self.decompose(task, intent)\n        \n        # 4. Otimiza ordem de execução\n        plan = self.optimize_dag(subtasks)\n        \n        return plan\n```\n\n### Classificadores Core\n\n1. **Document Classifier**\n   - Input: Documento raw\n   - Output: Tipo (ADR, RFC, Bug Report, etc.)\n   - Model: Fine-tuned BERT\n\n2. **Priority Classifier**\n   - Input: Task/Issue\n   - Output: Urgência (P0-P4)\n   - Model: Gradient Boosting + Rules\n\n3. **Sensitivity Classifier**\n   - Input: Qualquer texto\n   - Output: PII risk score + detected entities\n   - Model: spaCy NER + custom rules",
+        "why": "PHANTOM é o \"fantasma na máquina\" - o sistema que processa dados silenciosamente, classifica, transforma, e alimenta outros componentes. Sem ele, CEREBRO não teria dados limpos para indexar, SPECTRE não teria corpus preparado para análise.\n\nO nome vem da capacidade de operar \"invisível\" no background, fazendo o trabalho pesado que ninguém vê mas todos dependem.",
+        "implications": {
+          "positive": [
+            "Pipeline declarativo e reproduzível",
+            "Classificação automática com alta precisão",
+            "Sanitização consistente de dados",
+            "Facilidade de adicionar novos workflows"
+          ],
+          "negative": [
+            "Mais um sistema para manter",
+            "Learning curve para o framework"
+          ]
+        },
+        "alternatives_rejected": [
+          "Apache Airflow puro",
+          "Prefect",
+          "Custom scripts"
+        ]
+      },
+      "questions": [
+        "Como processamos dados em escala?",
+        "Como classificamos documentos automaticamente?",
+        "Como orquestramos workflows de ML?",
+        "Como sanitizamos dados antes do consumo?"
+      ],
+      "keywords": [
+        "PHANTOM",
+        "ML pipeline",
+        "ETL",
+        "classification",
+        "data sanitization",
+        "workflow orchestration"
+      ],
+      "concepts": [
+        "Machine Learning Pipeline",
+        "Extract Transform Load",
+        "Data Sanitization",
+        "Workflow Orchestration"
+      ],
+      "relations": {
+        "supersedes": [],
+        "related": [
+          "ADR-0001",
+          "ADR-0002",
+          "ADR-0003"
+        ],
+        "enables": [
+          "ADR-0005"
+        ]
+      },
+      "governance": {
+        "classification": "major",
+        "compliance": [
+          "ML",
+          "DATA",
+          "ETL"
+        ]
+      },
+      "metadata": {
+        "date": "2025-01-10",
+        "version": 1,
+        "hash": "dd5115096145",
+        "embedding_priority": "high"
+      }
+    },
+    {
+      "id": "ADR-0005",
+      "type": "architecture_decision",
+      "title": "NEUTRON como Camada de Infraestrutura Core",
+      "status": "accepted",
+      "summary": "[ADR-0005] NEUTRON como Camada de Infraestrutura Core: NEUTRON é baseado em **NixOS** com uma filosofia de **\"Nix Fort Knox\"**:\n\n```\n┌─────────────────────...",
+      "scope": {
+        "projects": [
+          "NEUTRON",
+          "GLOBAL"
+        ],
+        "layers": [
+          "infrastructure",
+          "security"
+        ]
+      },
+      "knowledge": {
+        "what": "NEUTRON é baseado em **NixOS** com uma filosofia de **\"Nix Fort Knox\"**:\n\n```\n┌──────────────────────────────────────────────────────────────┐\n│                    NEUTRON Architecture                       │\n├──────────────────────────────────────────────────────────────┤\n│                                                               │\n│  ┌─────────────────────────────────────────────────────────┐ │\n│  │                   GOVERNANCE LAYER                       │ │\n│  │  • ADR Ledger integration                               │ │\n│  │  • Compliance enforcement (LGPD, SOC2)                  │ │\n│  │  • Audit logging                                        │ │\n│  └─────────────────────────────────────────────────────────┘ │\n│                            │                                  │\n│  ┌─────────────────────────▼─────────────────────────────────┐\n│  │                 ORCHESTRATION LAYER                       │\n│  │                                                           │\n│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐               │\n│  │  │   K3s    │  │  Cilium  │  │ Longhorn │               │\n│  │  │ (K8s)    │  │  (CNI)   │  │ (Storage)│               │\n│  │  └──────────┘  └──────────┘  └──────────┘               │\n│  │                                                           │\n│  └─────────────────────────┬─────────────────────────────────┘\n│                            │                                  │\n│  ┌─────────────────────────▼─────────────────────────────────┐\n│  │                  COMPUTE LAYER                            │\n│  │                                                           │\n│  │  ┌──────────────────────────────────────────────┐        │\n│  │  │              NixOS Base System                │        │\n│  │  │                                               │        │\n│  │  │  129 Modules across 12 Categories:           │        │\n│  │  │  • Security (hardening, AppArmor, audit)     │        │\n│  │  │  • Networking (firewall, DNS, VPN)           │        │\n│  │  │  • Storage (ZFS, encryption, backup)         │        │\n│  │  │  • Compute (GPU, containers, VMs)            │        │\n│  │  │  • Observability (metrics, logs, traces)     │        │\n│  │  │  • Development (devshells, CI/CD)            │        │\n│  │  └──────────────────────────────────────────────┘        │\n│  │                                                           │\n│  └─────────────────────────┬─────────────────────────────────┘\n│                            │                                  │\n│  ┌─────────────────────────▼─────────────────────────────────┐\n│  │                 OBSERVABILITY LAYER                       │\n│  │                                                           │\n│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐               │\n│  │  │Prometheus│  │  Loki    │  │  Tempo   │               │\n│  │  │(Metrics) │  │ (Logs)   │  │ (Traces) │               │\n│  │  └──────────┘  └──────────┘  └──────────┘               │\n│  │         │           │            │                        │\n│  │         └───────────┼────────────┘                        │\n│  │                     ▼                                     │\n│  │              ┌──────────┐                                 │\n│  │              │ Grafana  │                                 │\n│  │              └──────────┘                                 │\n│  │                                                           │\n│  └───────────────────────────────────────────────────────────┘\n└──────────────────────────────────────────────────────────────┘\n```\n\n### Módulos Nix (Fort Knox)\n\nA configuração é dividida em 129 módulos organizados em 12 categorias:\n\n```nix\n# flake.nix (simplificado)\n{\n  outputs = { nixpkgs, ... }: {\n    nixosConfigurations.neutron = nixpkgs.lib.nixosSystem {\n      modules = [\n        # Security\n        ./modules/security/hardening.nix\n        ./modules/security/apparmor.nix\n        ./modules/security/audit.nix\n        ./modules/security/secrets.nix\n        \n        # Networking\n        ./modules/networking/firewall.nix\n        ./modules/networking/dns.nix\n        ./modules/networking/vpn.nix\n        \n        # Storage\n        ./modules/storage/zfs.nix\n        ./modules/storage/encryption.nix\n        ./modules/storage/backup.nix\n        \n        # Compute\n        ./modules/compute/gpu.nix\n        ./modules/compute/containers.nix\n        ./modules/compute/k3s.nix\n        \n        # Observability\n        ./modules/observability/prometheus.nix\n        ./modules/observability/loki.nix\n        ./modules/observability/grafana.nix\n        \n        # ... mais módulos\n      ];\n    };\n  };\n}\n```\n\n### ADR Compliance Enforcement\n\nNEUTRON lê ADRs e enforça automaticamente:\n\n```nix\n# modules/governance/adr-compliance.nix\n{ config, lib, pkgs, ... }:\n\nlet\n  adrLedger = builtins.fromJSON (builtins.readFile /path/to/knowledge_base.json);\n  \n  # Extrai regras de compliance de ADRs aceitas\n  complianceRules = lib.filter \n    (adr: lib.hasAttr \"SECURITY\" adr.governance.compliance_tags)\n    adrLedger.decisions;\nin {\n  assertions = map (rule: {\n    assertion = /* check compliance */;\n    message = \"ADR ${rule.id} compliance violation: ${rule.title}\";\n  }) complianceRules;\n  \n  # Bloqueia rebuild se violar ADRs de segurança\n  system.activationScripts.adrCompliance = ''\n    echo \"Checking ADR compliance...\"\n    # ... validation logic\n  '';\n}\n```",
+        "why": "NEUTRON é o \"núcleo atômico\" da stack - a camada de infraestrutura que sustenta tudo. O nome vem da física: assim como neutrons mantêm o núcleo estável, NEUTRON mantém a infraestrutura estável e previsível.\n\nSem infraestrutura confiável, os outros sistemas (CEREBRO, SPECTRE, PHANTOM) não têm onde rodar. NEUTRON é a fundação sobre a qual tudo é construído.",
+        "implications": {
+          "positive": [
+            "Infraestrutura 100% declarativa e versionada",
+            "Rollbacks instantâneos para qualquer estado anterior",
+            "Compliance automaticamente enforced",
+            "Observabilidade end-to-end"
+          ],
+          "negative": [
+            "Curva de aprendizado significativa para NixOS",
+            "Ecosystem menor que Docker/K8s tradicional"
+          ]
+        },
+        "alternatives_rejected": [
+          "Terraform + Ansible",
+          "Pulumi",
+          "Manual management"
+        ]
+      },
+      "questions": [
+        "Como gerenciamos infraestrutura?",
+        "Como garantimos reprodutibilidade?",
+        "Como enforçamos compliance automaticamente?",
+        "Como integramos observabilidade?"
+      ],
+      "keywords": [
+        "NEUTRON",
+        "infrastructure",
+        "NixOS",
+        "declarative",
+        "compliance",
+        "security",
+        "observability"
+      ],
+      "concepts": [
+        "Infrastructure as Code",
+        "Immutable Infrastructure",
+        "Declarative Configuration",
+        "Compliance as Code"
+      ],
+      "relations": {
+        "supersedes": [],
+        "related": [
+          "ADR-0001",
+          "ADR-0002",
+          "ADR-0003",
+          "ADR-0004"
+        ],
+        "enables": []
+      },
+      "governance": {
+        "classification": "critical",
+        "compliance": [
+          "INFRA",
+          "CORE",
+          "SECURITY"
+        ]
+      },
+      "metadata": {
+        "date": "2025-01-10",
+        "version": 1,
+        "hash": "97e3e1183c0c",
+        "embedding_priority": "critical"
+      }
+    },
+    {
+      "id": "ADR-0003",
+      "type": "architecture_decision",
+      "title": "SPECTRE como Motor de Extração de Padrões e Sentimentos",
+      "status": "accepted",
+      "summary": "[ADR-0003] SPECTRE como Motor de Extração de Padrões e Sentimentos: SPECTRE implementa análise multi-camada:\n\n```\n┌─────────────────────────────────────────────────────...",
+      "scope": {
+        "projects": [
+          "SPECTRE",
+          "GLOBAL"
+        ],
+        "layers": [
+          "ml",
+          "data",
+          "api"
+        ]
+      },
+      "knowledge": {
+        "what": "SPECTRE implementa análise multi-camada:\n\n```\n┌────────────────────────────────────────────────────────────┐\n│                    SPECTRE Architecture                     │\n├────────────────────────────────────────────────────────────┤\n│                                                             │\n│  Input Layer                                                │\n│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐       │\n│  │  Text   │  │  ADRs   │  │ Agent   │  │ Market  │       │\n│  │  Docs   │  │         │  │ Outputs │  │  Data   │       │\n│  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘       │\n│       │            │            │            │             │\n│       └────────────┴────────────┴────────────┘             │\n│                          │                                  │\n│  ┌───────────────────────▼───────────────────────┐         │\n│  │              Preprocessing Layer               │         │\n│  │  • Tokenization  • Normalization  • Cleaning  │         │\n│  └───────────────────────┬───────────────────────┘         │\n│                          │                                  │\n│  Analysis Layer          │                                  │\n│  ┌──────────┐  ┌─────────▼────────┐  ┌──────────┐         │\n│  │Sentiment │  │     Pattern      │  │  Entity  │         │\n│  │ Analyzer │  │    Extractor     │  │ Resolver │         │\n│  │          │  │                  │  │          │         │\n│  │ • VADER  │  │ • Regex+ML      │  │ • NER    │         │\n│  │ • BERT   │  │ • Topic Model   │  │ • Coref  │         │\n│  │ • Custom │  │ • Clustering    │  │          │         │\n│  └────┬─────┘  └────────┬────────┘  └────┬─────┘         │\n│       │                 │                 │                │\n│       └─────────────────┼─────────────────┘                │\n│                         │                                   │\n│  ┌──────────────────────▼──────────────────────┐           │\n│  │              Output Layer                    │           │\n│  │                                              │           │\n│  │  {                                          │           │\n│  │    \"sentiment\": 0.72,                       │           │\n│  │    \"patterns\": [\"urgency\", \"uncertainty\"],  │           │\n│  │    \"entities\": [\"K8s\", \"LGPD\"],             │           │\n│  │    \"confidence\": 0.89,                      │           │\n│  │    \"flags\": [\"potential_fomo\"]              │           │\n│  │  }                                          │           │\n│  └──────────────────────┬──────────────────────┘           │\n│                         │                                   │\n│                         ▼                                   │\n│              To CEREBRO / PHANTOM                           │\n└────────────────────────────────────────────────────────────┘\n```\n\n### Módulos Core\n\n1. **Sentiment Analyzer**\n   - Multi-model ensemble (VADER + BERT + domain-specific)\n   - Output: score [-1, 1] + confidence + breakdown\n\n2. **Pattern Extractor**\n   - Regex-based para padrões conhecidos\n   - ML-based para padrões emergentes\n   - Topic modeling para clustering semântico\n\n3. **Entity Resolver**\n   - NER para entidades técnicas\n   - Coreference resolution para contexto\n\n### Agent Auditing\n\n```python\n@spectre.audit\ndef evaluate_agent_output(output: str, context: str) -> AuditReport:\n    return {\n        \"coherence_score\": float,      # Faz sentido?\n        \"relevance_score\": float,      # Responde a pergunta?\n        \"hallucination_risk\": float,   # Inventou algo?\n        \"sentiment_alignment\": float,  # Tom apropriado?\n        \"factual_density\": float,      # Substância vs. fluff\n    }\n```",
+        "why": "SPECTRE significa **S**entiment & **P**attern **E**xtraction for **C**ontextual **T**extual **R**esearch & **E**valuation. É o \"forensics engine\" da stack - analisa texto para extrair insights que humanos não conseguem ver em escala.\n\nCasos de uso críticos:\n\n1. **Agent Auditing**: Avaliar qualidade de outputs de LLMs\n2. **FOMO Detection**: Identificar hype vs. substância em dados de mercado\n3. **Pattern Mining**: Extrair recurring themes de corpora massivos\n4. **Sentiment Scoring**: Quantificar tom/mood de documentos",
+        "implications": {
+          "positive": [
+            "Análise de sentimento em <50ms",
+            "Pattern extraction customizável",
+            "Auditoria de agents com métricas objetivas",
+            "Escala para milhões de documentos"
+          ],
+          "negative": [
+            "Requer treinamento/fine-tuning para domínios específicos",
+            "Modelo precisa de updates periódicos"
+          ]
+        },
+        "alternatives_rejected": [
+          "APIs externas (AWS Comprehend, GCP NLP)",
+          "LLM direto para análise"
+        ]
+      },
+      "questions": [
+        "Como analisamos sentimento em textos?",
+        "Como extraímos padrões de dados massivos?",
+        "Como auditamos qualidade de agents?",
+        "Como SPECTRE se integra com a stack?"
+      ],
+      "keywords": [
+        "SPECTRE",
+        "sentiment analysis",
+        "pattern extraction",
+        "NLP",
+        "agent auditing",
+        "FOMO detection"
+      ],
+      "concepts": [
+        "Sentiment Analysis",
+        "Pattern Recognition",
+        "Agent Quality Scoring",
+        "Textual Forensics"
+      ],
+      "relations": {
+        "supersedes": [],
+        "related": [
+          "ADR-0001",
+          "ADR-0002"
+        ],
+        "enables": []
+      },
+      "governance": {
+        "classification": "major",
+        "compliance": [
+          "ML",
+          "NLP",
+          "ANALYTICS"
+        ]
+      },
+      "metadata": {
+        "date": "2025-01-10",
+        "version": 1,
+        "hash": "91766e2872a3",
+        "embedding_priority": "high"
+      }
+    },
+    {
+      "id": "ADR-0001",
+      "type": "architecture_decision",
+      "title": "Git como Sistema Operacional para Decisões Arquiteturais",
+      "status": "accepted",
+      "summary": "[ADR-0001] Git como Sistema Operacional para Decisões Arquiteturais: Adotamos **Git como sistema operacional** para decisões arquiteturais:\n\n- **Formato**: YAML frontmat...",
+      "scope": {
+        "projects": [
+          "GLOBAL",
+          "SPECTRE",
+          "PHANTOM",
+          "CEREBRO",
+          "NEUTRON"
+        ],
+        "layers": [
+          "governance",
+          "infrastructure"
+        ]
+      },
+      "knowledge": {
+        "what": "Adotamos **Git como sistema operacional** para decisões arquiteturais:\n\n- **Formato**: YAML frontmatter + Markdown body (parseável + legível)\n- **Storage**: Git repository com estrutura `adr/{status}/ADR-XXXX.md`\n- **Schema**: JSON Schema para validação e tipagem\n- **Tooling**: CLI bash + Parser Python para operações\n- **Output**: JSON knowledge base para consumo por agentes\n\nA transformação de ADRs em \"knowledge law\" acontece via AST parsing:\n```\nADR.md → Parser → ADRNode → KnowledgeFragment → CEREBRO/SPECTRE/PHANTOM\n```",
+        "why": "A stack inteligente (SPECTRE, PHANTOM, CEREBRO, NEUTRON) precisa de uma base de conhecimento estruturada que seja:\n\n1. **Parseável** - Agentes precisam consumir decisões programaticamente\n2. **Imutável** - Audit trail para compliance e debugging\n3. **Soberana** - Sem dependência de ferramentas SaaS\n4. **Human-readable** - Devs e stakeholders precisam entender\n5. **Versionada** - Evolução de decisões ao longo do tempo\n\nO problema central: conhecimento arquitetural estava fragmentado em múltiplas ferramentas (Notion, Obsidian, cabeça do desenvolvedor), impossibilitando tanto auditoria quanto consumo automatizado por sistemas inteligentes.",
+        "implications": {
+          "positive": [
+            "Todas as decisões são versionadas e assinadas (GPG)",
+            "Sistemas inteligentes podem parsear e ingerir knowledge automaticamente",
+            "Audit trail completo para compliance (LGPD, SOC2)",
+            "Portabilidade zero-cost entre plataformas",
+            "Offline-first: funciona sem internet",
+            "Branching para decisões experimentais (RFCs)"
+          ],
+          "negative": [
+            "Requer disciplina de commit",
+            "Tooling CLI necessário para UX decente",
+            "Colaboradores não-técnicos podem ter fricção"
+          ]
+        },
+        "alternatives_rejected": [
+          "Notion/Confluence",
+          "Custom database"
+        ]
+      },
+      "questions": [
+        "Como documentamos decisões arquiteturais?",
+        "Onde fica a fonte de verdade para decisões?",
+        "Como os agentes acessam knowledge arquitetural?",
+        "Como garantimos auditabilidade de decisões?"
+      ],
+      "keywords": [
+        "git",
+        "ADR",
+        "architecture decisions",
+        "knowledge management",
+        "governance",
+        "audit trail",
+        "version control"
+      ],
+      "concepts": [
+        "Knowledge Sovereignty",
+        "Immutable Decision Log",
+        "Git as Database",
+        "Human-Readable Knowledge"
+      ],
+      "relations": {
+        "supersedes": [],
+        "related": [],
+        "enables": [
+          "ADR-0002",
+          "ADR-0003",
+          "ADR-0004",
+          "ADR-0005"
+        ]
+      },
+      "governance": {
+        "classification": "critical",
+        "compliance": [
+          "GOVERNANCE",
+          "FOUNDATION"
+        ]
+      },
+      "metadata": {
+        "date": "2025-01-10",
+        "version": 1,
+        "hash": "7dafd3d0d3c2",
+        "embedding_priority": "critical"
+      }
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "ADR-0002",
+        "type": "adr",
+        "label": "CEREBRO como Camada Central de Knowledge Management",
+        "status": "accepted",
+        "projects": [
+          "CEREBRO",
+          "GLOBAL"
+        ]
+      },
+      {
+        "id": "ADR-0004",
+        "type": "adr",
+        "label": "PHANTOM como Framework de Classificação ML e Pipeline ETL",
+        "status": "accepted",
+        "projects": [
+          "PHANTOM",
+          "GLOBAL"
+        ]
+      },
+      {
+        "id": "ADR-0005",
+        "type": "adr",
+        "label": "NEUTRON como Camada de Infraestrutura Core",
+        "status": "accepted",
+        "projects": [
+          "NEUTRON",
+          "GLOBAL"
+        ]
+      },
+      {
+        "id": "ADR-0003",
+        "type": "adr",
+        "label": "SPECTRE como Motor de Extração de Padrões e Sentimentos",
+        "status": "accepted",
+        "projects": [
+          "SPECTRE",
+          "GLOBAL"
+        ]
+      },
+      {
+        "id": "ADR-0001",
+        "type": "adr",
+        "label": "Git como Sistema Operacional para Decisões Arquiteturais",
+        "status": "accepted",
+        "projects": [
+          "GLOBAL",
+          "SPECTRE",
+          "PHANTOM",
+          "CEREBRO",
+          "NEUTRON"
+        ]
+      },
+      {
+        "id": "PROJECT:CEREBRO",
+        "type": "project",
+        "label": "CEREBRO"
+      },
+      {
+        "id": "PROJECT:NEUTRON",
+        "type": "project",
+        "label": "NEUTRON"
+      },
+      {
+        "id": "PROJECT:GLOBAL",
+        "type": "project",
+        "label": "GLOBAL"
+      },
+      {
+        "id": "PROJECT:SPECTRE",
+        "type": "project",
+        "label": "SPECTRE"
+      },
+      {
+        "id": "PROJECT:PHANTOM",
+        "type": "project",
+        "label": "PHANTOM"
+      }
+    ],
+    "edges": [
+      {
+        "source": "ADR-0002",
+        "target": "ADR-0001",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0002",
+        "target": "ADR-0003",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0002",
+        "target": "ADR-0004",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0002",
+        "target": "ADR-0005",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0002",
+        "target": "PROJECT:CEREBRO",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0002",
+        "target": "PROJECT:GLOBAL",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0004",
+        "target": "ADR-0001",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0004",
+        "target": "ADR-0002",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0004",
+        "target": "ADR-0003",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0004",
+        "target": "ADR-0005",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0004",
+        "target": "PROJECT:PHANTOM",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0004",
+        "target": "PROJECT:GLOBAL",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0005",
+        "target": "ADR-0001",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0005",
+        "target": "ADR-0002",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0005",
+        "target": "ADR-0003",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0005",
+        "target": "ADR-0004",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0005",
+        "target": "PROJECT:NEUTRON",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0005",
+        "target": "PROJECT:GLOBAL",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0003",
+        "target": "ADR-0001",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0003",
+        "target": "ADR-0002",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0003",
+        "target": "PROJECT:SPECTRE",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0003",
+        "target": "PROJECT:GLOBAL",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0001",
+        "target": "ADR-0002",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0001",
+        "target": "ADR-0003",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0001",
+        "target": "ADR-0004",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0001",
+        "target": "ADR-0005",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0001",
+        "target": "PROJECT:GLOBAL",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0001",
+        "target": "PROJECT:SPECTRE",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0001",
+        "target": "PROJECT:PHANTOM",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0001",
+        "target": "PROJECT:CEREBRO",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0001",
+        "target": "PROJECT:NEUTRON",
+        "type": "belongs_to"
+      }
+    ]
+  },
+  "concepts_index": {
+    "Retrieval Augmented Generation": [
+      "ADR-0002"
+    ],
+    "Semantic Search": [
+      "ADR-0002"
+    ],
+    "Knowledge Graph": [
+      "ADR-0002"
+    ],
+    "Proactive Learning": [
+      "ADR-0002"
+    ],
+    "Machine Learning Pipeline": [
+      "ADR-0004"
+    ],
+    "Extract Transform Load": [
+      "ADR-0004"
+    ],
+    "Data Sanitization": [
+      "ADR-0004"
+    ],
+    "Workflow Orchestration": [
+      "ADR-0004"
+    ],
+    "Infrastructure as Code": [
+      "ADR-0005"
+    ],
+    "Immutable Infrastructure": [
+      "ADR-0005"
+    ],
+    "Declarative Configuration": [
+      "ADR-0005"
+    ],
+    "Compliance as Code": [
+      "ADR-0005"
+    ],
+    "Sentiment Analysis": [
+      "ADR-0003"
+    ],
+    "Pattern Recognition": [
+      "ADR-0003"
+    ],
+    "Agent Quality Scoring": [
+      "ADR-0003"
+    ],
+    "Textual Forensics": [
+      "ADR-0003"
+    ],
+    "Knowledge Sovereignty": [
+      "ADR-0001"
+    ],
+    "Immutable Decision Log": [
+      "ADR-0001"
+    ],
+    "Git as Database": [
+      "ADR-0001"
+    ],
+    "Human-Readable Knowledge": [
+      "ADR-0001"
+    ]
+  },
+  "questions_index": {
+    "Como os agentes acessam knowledge contextual?": "ADR-0002",
+    "Qual a arquitetura do sistema de RAG?": "ADR-0002",
+    "Como garantimos accuracy no retrieval?": "ADR-0002",
+    "Como CEREBRO se integra com outros sistemas?": "ADR-0002",
+    "Como processamos dados em escala?": "ADR-0004",
+    "Como classificamos documentos automaticamente?": "ADR-0004",
+    "Como orquestramos workflows de ML?": "ADR-0004",
+    "Como sanitizamos dados antes do consumo?": "ADR-0004",
+    "Como gerenciamos infraestrutura?": "ADR-0005",
+    "Como garantimos reprodutibilidade?": "ADR-0005",
+    "Como enforçamos compliance automaticamente?": "ADR-0005",
+    "Como integramos observabilidade?": "ADR-0005",
+    "Como analisamos sentimento em textos?": "ADR-0003",
+    "Como extraímos padrões de dados massivos?": "ADR-0003",
+    "Como auditamos qualidade de agents?": "ADR-0003",
+    "Como SPECTRE se integra com a stack?": "ADR-0003",
+    "Como documentamos decisões arquiteturais?": "ADR-0001",
+    "Onde fica a fonte de verdade para decisões?": "ADR-0001",
+    "Como os agentes acessam knowledge arquitetural?": "ADR-0001",
+    "Como garantimos auditabilidade de decisões?": "ADR-0001"
+  }
+}

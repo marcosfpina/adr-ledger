@@ -1,0 +1,715 @@
+#!/usr/bin/env bash
+# =============================================================================
+# ADR CLI - Architecture Decision Records Management
+# =============================================================================
+# Operações CRUD para o Livro Razão de Decisões Arquiteturais
+# Integra com CEREBRO, SPECTRE, PHANTOM, NEUTRON
+# =============================================================================
+
+set -euo pipefail
+
+# Configuration
+ADR_ROOT="${ADR_ROOT:-$(dirname "$(readlink -f "$0")")/..}"
+ADR_DIR="${ADR_ROOT}/adr"
+SCHEMA_PATH="${ADR_ROOT}/.schema/adr.schema.json"
+GOVERNANCE_PATH="${ADR_ROOT}/.governance/governance.yaml"
+KNOWLEDGE_DIR="${ADR_ROOT}/knowledge"
+PARSER="${ADR_ROOT}/.parsers/adr_parser.py"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# =============================================================================
+# HELPERS
+# =============================================================================
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_success() { echo -e "${GREEN}[OK]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+
+get_next_id() {
+    local max_id=0
+    for file in "${ADR_DIR}"/{proposed,accepted,superseded,rejected}/ADR-*.md 2>/dev/null; do
+        if [[ -f "$file" ]]; then
+            local id=$(basename "$file" | grep -oP 'ADR-\K[0-9]+' || echo "0")
+            if (( id > max_id )); then
+                max_id=$id
+            fi
+        fi
+    done
+    printf "ADR-%04d" $((max_id + 1))
+}
+
+get_adr_path() {
+    local id="$1"
+    for status_dir in proposed accepted superseded rejected deprecated; do
+        local path="${ADR_DIR}/${status_dir}/${id}.md"
+        if [[ -f "$path" ]]; then
+            echo "$path"
+            return 0
+        fi
+    done
+    return 1
+}
+
+validate_project() {
+    local project="$1"
+    local valid_projects="SPECTRE PHANTOM CEREBRO NEUTRON GLOBAL"
+    if [[ " $valid_projects " =~ " $project " ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# =============================================================================
+# COMMANDS
+# =============================================================================
+
+cmd_new() {
+    local title=""
+    local projects=()
+    local classification="minor"
+    local interactive=true
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -t|--title) title="$2"; shift 2 ;;
+            -p|--project) projects+=("$2"); shift 2 ;;
+            -c|--classification) classification="$2"; shift 2 ;;
+            --no-interactive) interactive=false; shift ;;
+            *) shift ;;
+        esac
+    done
+    
+    # Interactive mode
+    if [[ "$interactive" == true && -z "$title" ]]; then
+        echo -e "${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${CYAN}║          📝 Nova Decisão Arquitetural (ADR)                  ║${NC}"
+        echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+        
+        read -p "Título da decisão: " title
+        
+        echo ""
+        echo "Projetos disponíveis: SPECTRE, PHANTOM, CEREBRO, NEUTRON, GLOBAL"
+        read -p "Projetos (separados por espaço): " -a projects
+        
+        echo ""
+        echo "Classificações: critical, major, minor, patch"
+        read -p "Classificação [$classification]: " input_class
+        classification="${input_class:-$classification}"
+    fi
+    
+    if [[ -z "$title" ]]; then
+        log_error "Título é obrigatório"
+        exit 1
+    fi
+    
+    # Validate projects
+    for p in "${projects[@]}"; do
+        if ! validate_project "$p"; then
+            log_error "Projeto inválido: $p"
+            exit 1
+        fi
+    done
+    
+    local id=$(get_next_id)
+    local date=$(date +%Y-%m-%d)
+    local timestamp=$(date -Iseconds)
+    local projects_yaml=""
+    
+    for p in "${projects[@]}"; do
+        projects_yaml="${projects_yaml}      - ${p}\n"
+    done
+    
+    local file_path="${ADR_DIR}/proposed/${id}.md"
+    
+    cat > "$file_path" << EOF
+---
+id: "${id}"
+title: "${title}"
+status: proposed
+date: "${date}"
+
+authors:
+  - name: "Pina"
+    role: "Security Engineer"
+    github: "pina"
+
+reviewers: []
+
+governance:
+  classification: "${classification}"
+  requires_approval_from:
+    - architect
+  compliance_tags: []
+  review_deadline: "$(date -d '+7 days' +%Y-%m-%d)"
+  auto_supersede_after: "1y"
+
+scope:
+  projects:
+$(echo -e "$projects_yaml")  layers:
+    - infrastructure
+  environments:
+    - all
+
+rationale:
+  drivers: []
+  alternatives_considered: []
+  trade_offs: []
+
+consequences:
+  positive: []
+  negative: []
+  risks: []
+
+implementation:
+  effort: "medium"
+  timeline: ""
+  dependencies: []
+  blocked_by: []
+  tasks: []
+
+relations:
+  supersedes: []
+  superseded_by: null
+  related_to: []
+  implements: []
+  enables: []
+
+knowledge_extraction:
+  keywords: []
+  concepts: []
+  questions_answered: []
+  embedding_priority: "normal"
+
+audit:
+  created_at: "${timestamp}"
+  last_modified: "${timestamp}"
+  version: 1
+  changelog:
+    - date: "${timestamp}"
+      author: "Pina"
+      change: "ADR criado"
+      commit_hash: null
+---
+
+## Context
+
+<!-- 
+Descreva o contexto e o problema que levou a esta decisão.
+O que está acontecendo? Por que precisamos tomar uma decisão?
+-->
+
+[Descreva o contexto aqui]
+
+## Decision
+
+<!-- 
+Qual é a decisão que estamos tomando?
+Seja específico e claro sobre o que será feito.
+-->
+
+[Descreva a decisão aqui]
+
+## Rationale
+
+<!-- 
+Por que esta decisão foi tomada?
+Quais alternativas foram consideradas?
+Quais trade-offs foram aceitos?
+-->
+
+### Drivers
+
+- [Driver 1]
+
+### Alternatives Considered
+
+#### Option A: [Nome]
+- **Pros:** 
+- **Cons:** 
+- **Why rejected:** 
+
+### Trade-offs
+
+- [Trade-off aceito]
+
+## Consequences
+
+### Positive
+
+- [Consequência positiva]
+
+### Negative
+
+- [Consequência negativa]
+
+### Risks
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| [Risk] | medium | medium | [Mitigation] |
+
+## Implementation
+
+### Tasks
+
+- [ ] Task 1
+- [ ] Task 2
+
+### Timeline
+
+[Timeline estimado]
+
+## References
+
+- [Link para documentação relevante]
+EOF
+
+    log_success "ADR criado: ${file_path}"
+    echo ""
+    echo -e "${PURPLE}Próximos passos:${NC}"
+    echo "  1. Edite o arquivo: ${EDITOR:-vim} ${file_path}"
+    echo "  2. Solicite revisão: adr review ${id}"
+    echo "  3. Após aprovação: adr accept ${id}"
+}
+
+cmd_list() {
+    local status_filter=""
+    local project_filter=""
+    local format="table"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -s|--status) status_filter="$2"; shift 2 ;;
+            -p|--project) project_filter="$2"; shift 2 ;;
+            -f|--format) format="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+    
+    echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║                      📚 Livro Razão - ADR Ledger                             ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    
+    if [[ "$format" == "table" ]]; then
+        printf "%-10s │ %-8s │ %-45s │ %-10s\n" "ID" "Status" "Title" "Date"
+        echo "───────────┼──────────┼───────────────────────────────────────────────┼───────────"
+    fi
+    
+    for status_dir in proposed accepted superseded rejected deprecated; do
+        if [[ -n "$status_filter" && "$status_filter" != "$status_dir" ]]; then
+            continue
+        fi
+        
+        for file in "${ADR_DIR}/${status_dir}"/ADR-*.md 2>/dev/null; do
+            if [[ ! -f "$file" ]]; then
+                continue
+            fi
+            
+            local id=$(grep -oP '^id:\s*"\K[^"]+' "$file" 2>/dev/null || basename "$file" .md)
+            local title=$(grep -oP '^title:\s*"\K[^"]+' "$file" 2>/dev/null || "Unknown")
+            local date=$(grep -oP '^date:\s*"\K[^"]+' "$file" 2>/dev/null || "Unknown")
+            local status=$(grep -oP '^status:\s*\K\w+' "$file" 2>/dev/null || "$status_dir")
+            
+            # Project filter
+            if [[ -n "$project_filter" ]]; then
+                if ! grep -q "$project_filter" "$file"; then
+                    continue
+                fi
+            fi
+            
+            # Truncate title if too long
+            if (( ${#title} > 45 )); then
+                title="${title:0:42}..."
+            fi
+            
+            local status_icon=""
+            case "$status" in
+                proposed) status_icon="🟡" ;;
+                accepted) status_icon="🟢" ;;
+                rejected) status_icon="🔴" ;;
+                deprecated) status_icon="🟠" ;;
+                superseded) status_icon="⚪" ;;
+            esac
+            
+            if [[ "$format" == "table" ]]; then
+                printf "%-10s │ %s %-6s │ %-45s │ %-10s\n" "$id" "$status_icon" "$status" "$title" "$date"
+            elif [[ "$format" == "json" ]]; then
+                echo "{\"id\":\"$id\",\"status\":\"$status\",\"title\":\"$title\",\"date\":\"$date\"}"
+            fi
+        done
+    done
+}
+
+cmd_show() {
+    local id="$1"
+    
+    if [[ -z "$id" ]]; then
+        log_error "ID é obrigatório: adr show ADR-0001"
+        exit 1
+    fi
+    
+    local path=$(get_adr_path "$id")
+    if [[ -z "$path" ]]; then
+        log_error "ADR não encontrado: $id"
+        exit 1
+    fi
+    
+    if command -v bat &>/dev/null; then
+        bat --style=plain --language=markdown "$path"
+    elif command -v glow &>/dev/null; then
+        glow "$path"
+    else
+        cat "$path"
+    fi
+}
+
+cmd_accept() {
+    local id="$1"
+    
+    if [[ -z "$id" ]]; then
+        log_error "ID é obrigatório: adr accept ADR-0001"
+        exit 1
+    fi
+    
+    local source="${ADR_DIR}/proposed/${id}.md"
+    local target="${ADR_DIR}/accepted/${id}.md"
+    
+    if [[ ! -f "$source" ]]; then
+        log_error "ADR não encontrado em proposed: $id"
+        exit 1
+    fi
+    
+    # Update status in file
+    sed -i 's/^status: proposed/status: accepted/' "$source"
+    
+    # Update last_modified
+    local timestamp=$(date -Iseconds)
+    sed -i "s/last_modified:.*/last_modified: \"${timestamp}\"/" "$source"
+    
+    # Move file
+    mv "$source" "$target"
+    
+    log_success "ADR aceito: $id"
+    log_info "Movido para: $target"
+    
+    # Trigger knowledge update
+    cmd_sync
+}
+
+cmd_supersede() {
+    local old_id="$1"
+    local new_id="$2"
+    
+    if [[ -z "$old_id" || -z "$new_id" ]]; then
+        log_error "Uso: adr supersede <OLD_ID> <NEW_ID>"
+        exit 1
+    fi
+    
+    local old_path=$(get_adr_path "$old_id")
+    local new_path=$(get_adr_path "$new_id")
+    
+    if [[ -z "$old_path" ]]; then
+        log_error "ADR antigo não encontrado: $old_id"
+        exit 1
+    fi
+    
+    if [[ -z "$new_path" ]]; then
+        log_error "ADR novo não encontrado: $new_id"
+        exit 1
+    fi
+    
+    # Update old ADR
+    sed -i 's/^status:.*/status: superseded/' "$old_path"
+    sed -i "s/superseded_by:.*/superseded_by: \"${new_id}\"/" "$old_path"
+    
+    # Move old ADR to superseded folder
+    local old_filename=$(basename "$old_path")
+    mv "$old_path" "${ADR_DIR}/superseded/${old_filename}"
+    
+    # Update new ADR to reference old
+    # This is a simplified version - production would need proper YAML manipulation
+    log_warn "Lembre-se de adicionar '${old_id}' ao campo 'supersedes' em ${new_path}"
+    
+    log_success "$old_id foi superseded por $new_id"
+    
+    cmd_sync
+}
+
+cmd_sync() {
+    log_info "Sincronizando Knowledge Base..."
+    
+    # Ensure parser is executable
+    chmod +x "$PARSER" 2>/dev/null || true
+    
+    # Generate knowledge base
+    python3 "$PARSER" "$ADR_DIR" --format knowledge --pretty -o "${KNOWLEDGE_DIR}/knowledge_base.json"
+    
+    # Generate graph
+    python3 "$PARSER" "$ADR_DIR" --format graph --pretty -o "${KNOWLEDGE_DIR}/graph.json"
+    
+    # Generate SPECTRE format
+    python3 "$PARSER" "$ADR_DIR" --format spectre --pretty -o "${KNOWLEDGE_DIR}/spectre_corpus.json"
+    
+    # Generate PHANTOM format
+    python3 "$PARSER" "$ADR_DIR" --format phantom --pretty -o "${KNOWLEDGE_DIR}/phantom_training.json"
+    
+    # Generate index
+    cat > "${KNOWLEDGE_DIR}/index.json" << EOF
+{
+  "version": "1.0",
+  "generated_at": "$(date -Iseconds)",
+  "files": {
+    "knowledge_base": "knowledge_base.json",
+    "graph": "graph.json",
+    "spectre_corpus": "spectre_corpus.json",
+    "phantom_training": "phantom_training.json"
+  },
+  "agents": {
+    "CEREBRO": {
+      "primary": "knowledge_base.json",
+      "secondary": ["graph.json"]
+    },
+    "SPECTRE": {
+      "primary": "spectre_corpus.json"
+    },
+    "PHANTOM": {
+      "primary": "phantom_training.json"
+    },
+    "NEUTRON": {
+      "primary": "knowledge_base.json",
+      "enforce_compliance": true
+    }
+  }
+}
+EOF
+    
+    log_success "Knowledge Base atualizada em ${KNOWLEDGE_DIR}/"
+    
+    # Stats
+    local total=$(find "$ADR_DIR" -name "ADR-*.md" | wc -l)
+    local accepted=$(find "${ADR_DIR}/accepted" -name "ADR-*.md" 2>/dev/null | wc -l)
+    local proposed=$(find "${ADR_DIR}/proposed" -name "ADR-*.md" 2>/dev/null | wc -l)
+    
+    echo ""
+    echo -e "${CYAN}📊 Estatísticas:${NC}"
+    echo "  Total: $total ADRs"
+    echo "  Accepted: $accepted"
+    echo "  Proposed: $proposed"
+}
+
+cmd_search() {
+    local query="$1"
+    
+    if [[ -z "$query" ]]; then
+        log_error "Query é obrigatória: adr search 'kubernetes'"
+        exit 1
+    fi
+    
+    log_info "Buscando: '$query'"
+    echo ""
+    
+    grep -r -l -i "$query" "${ADR_DIR}" --include="*.md" 2>/dev/null | while read -r file; do
+        local id=$(grep -oP '^id:\s*"\K[^"]+' "$file" 2>/dev/null || basename "$file" .md)
+        local title=$(grep -oP '^title:\s*"\K[^"]+' "$file" 2>/dev/null || "Unknown")
+        local status=$(grep -oP '^status:\s*\K\w+' "$file" 2>/dev/null || "unknown")
+        
+        echo -e "${GREEN}${id}${NC} [${status}] - ${title}"
+        
+        # Show matching lines
+        grep -n -i "$query" "$file" --color=always | head -3 | sed 's/^/    /'
+        echo ""
+    done
+}
+
+cmd_graph() {
+    local output="${1:-stdout}"
+    
+    # Generate Mermaid graph
+    local mermaid="graph TB\n"
+    
+    for file in "${ADR_DIR}"/{proposed,accepted}/*.md; do
+        if [[ ! -f "$file" ]]; then
+            continue
+        fi
+        
+        local id=$(grep -oP '^id:\s*"\K[^"]+' "$file" 2>/dev/null || continue)
+        local title=$(grep -oP '^title:\s*"\K[^"]+' "$file" 2>/dev/null || "Unknown")
+        local status=$(grep -oP '^status:\s*\K\w+' "$file" 2>/dev/null || "unknown")
+        
+        # Truncate title
+        title="${title:0:30}"
+        
+        # Add node
+        mermaid+="    ${id}[\"${id}: ${title}\"]\n"
+        
+        # Add style based on status
+        if [[ "$status" == "accepted" ]]; then
+            mermaid+="    style ${id} fill:#90EE90\n"
+        elif [[ "$status" == "proposed" ]]; then
+            mermaid+="    style ${id} fill:#FFD700\n"
+        fi
+        
+        # Parse relations
+        local supersedes=$(grep -oP 'supersedes:\s*\n\s*-\s*"\K[^"]+' "$file" 2>/dev/null || true)
+        for s in $supersedes; do
+            mermaid+="    ${id} -->|supersedes| ${s}\n"
+        done
+        
+        local related=$(grep -oP 'related_to:\s*\n\s*-\s*"\K[^"]+' "$file" 2>/dev/null || true)
+        for r in $related; do
+            mermaid+="    ${id} -.->|related| ${r}\n"
+        done
+    done
+    
+    if [[ "$output" == "stdout" ]]; then
+        echo -e "$mermaid"
+    else
+        echo -e "$mermaid" > "$output"
+        log_success "Graph saved to $output"
+    fi
+}
+
+cmd_validate() {
+    local target="${1:-.}"
+    local errors=0
+    
+    log_info "Validando ADRs..."
+    
+    for file in "${ADR_DIR}"/{proposed,accepted,superseded,rejected}/*.md 2>/dev/null; do
+        if [[ ! -f "$file" ]]; then
+            continue
+        fi
+        
+        local id=$(basename "$file" .md)
+        local valid=true
+        
+        # Check required fields
+        if ! grep -q '^id:' "$file"; then
+            log_error "$id: Campo 'id' ausente"
+            valid=false
+            ((errors++))
+        fi
+        
+        if ! grep -q '^title:' "$file"; then
+            log_error "$id: Campo 'title' ausente"
+            valid=false
+            ((errors++))
+        fi
+        
+        if ! grep -q '^status:' "$file"; then
+            log_error "$id: Campo 'status' ausente"
+            valid=false
+            ((errors++))
+        fi
+        
+        if ! grep -q '^date:' "$file"; then
+            log_error "$id: Campo 'date' ausente"
+            valid=false
+            ((errors++))
+        fi
+        
+        # Check for empty sections
+        if grep -q '^\[Descreva' "$file"; then
+            log_warn "$id: Contém placeholders não preenchidos"
+        fi
+        
+        if [[ "$valid" == true ]]; then
+            log_success "$id: OK"
+        fi
+    done
+    
+    echo ""
+    if (( errors > 0 )); then
+        log_error "Validação falhou com $errors erros"
+        return 1
+    else
+        log_success "Todos os ADRs são válidos"
+    fi
+}
+
+cmd_help() {
+    cat << 'EOF'
+╔══════════════════════════════════════════════════════════════════╗
+║              📜 ADR CLI - Livro Razão de Arquitetura             ║
+║         Knowledge as Law for Intelligent Systems                 ║
+╚══════════════════════════════════════════════════════════════════╝
+
+USAGE:
+    adr <command> [options]
+
+COMMANDS:
+    new       Criar nova decisão arquitetural
+    list      Listar todas as ADRs
+    show      Mostrar detalhes de uma ADR
+    accept    Aceitar uma ADR proposta
+    supersede Marcar ADR como superseded
+    search    Buscar ADRs por texto
+    sync      Sincronizar Knowledge Base
+    graph     Gerar grafo de dependências (Mermaid)
+    validate  Validar ADRs
+
+EXAMPLES:
+    adr new -t "Use Rust for Parser" -p SPECTRE -c major
+    adr list -s accepted -p PHANTOM
+    adr show ADR-0001
+    adr accept ADR-0001
+    adr supersede ADR-0001 ADR-0002
+    adr search "kubernetes"
+    adr sync
+    adr graph > graph.mmd
+
+OPTIONS:
+    -t, --title           Título da ADR
+    -p, --project         Projeto (SPECTRE, PHANTOM, CEREBRO, NEUTRON, GLOBAL)
+    -c, --classification  Classificação (critical, major, minor, patch)
+    -s, --status          Filtrar por status
+    -f, --format          Formato de saída (table, json)
+
+INTEGRATION:
+    CEREBRO  → knowledge_base.json (RAG ingestion)
+    SPECTRE  → spectre_corpus.json (sentiment analysis)
+    PHANTOM  → phantom_training.json (ML classification)
+    NEUTRON  → knowledge_base.json (compliance enforcement)
+
+EOF
+}
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
+main() {
+    local cmd="${1:-help}"
+    shift || true
+    
+    case "$cmd" in
+        new)       cmd_new "$@" ;;
+        list|ls)   cmd_list "$@" ;;
+        show)      cmd_show "$@" ;;
+        accept)    cmd_accept "$@" ;;
+        supersede) cmd_supersede "$@" ;;
+        search)    cmd_search "$@" ;;
+        sync)      cmd_sync "$@" ;;
+        graph)     cmd_graph "$@" ;;
+        validate)  cmd_validate "$@" ;;
+        help|--help|-h) cmd_help ;;
+        *)
+            log_error "Comando desconhecido: $cmd"
+            cmd_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
