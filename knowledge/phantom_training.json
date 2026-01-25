@@ -1,6 +1,48 @@
 [
   {
     "features": {
+      "context_length": 755,
+      "decision_length": 6877,
+      "num_alternatives": 3,
+      "num_risks": 2,
+      "num_positive_consequences": 5,
+      "num_negative_consequences": 2,
+      "has_compliance_tags": true,
+      "num_projects": 2
+    },
+    "label": "major",
+    "id": "ADR-0009"
+  },
+  {
+    "features": {
+      "context_length": 1783,
+      "decision_length": 5599,
+      "num_alternatives": 4,
+      "num_risks": 4,
+      "num_positive_consequences": 7,
+      "num_negative_consequences": 4,
+      "has_compliance_tags": true,
+      "num_projects": 5
+    },
+    "label": "critical",
+    "id": "ADR-0006"
+  },
+  {
+    "features": {
+      "context_length": 4053,
+      "decision_length": 900,
+      "num_alternatives": 3,
+      "num_risks": 3,
+      "num_positive_consequences": 5,
+      "num_negative_consequences": 3,
+      "has_compliance_tags": true,
+      "num_projects": 1
+    },
+    "label": "critical",
+    "id": "ADR-0010"
+  },
+  {
+    "features": {
       "context_length": 305,
       "decision_length": 2035,
       "num_alternatives": 2,
@@ -12,6 +54,20 @@
     },
     "label": "critical",
     "id": "ADR-0002"
+  },
+  {
+    "features": {
+      "context_length": 2050,
+      "decision_length": 8206,
+      "num_alternatives": 3,
+      "num_risks": 3,
+      "num_positive_consequences": 7,
+      "num_negative_consequences": 4,
+      "has_compliance_tags": true,
+      "num_projects": 2
+    },
+    "label": "major",
+    "id": "ADR-0007"
   },
   {
     "features": {
@@ -68,5 +124,19 @@
     },
     "label": "major",
     "id": "ADR-0003"
+  },
+  {
+    "features": {
+      "context_length": 935,
+      "decision_length": 3938,
+      "num_alternatives": 2,
+      "num_risks": 1,
+      "num_positive_consequences": 4,
+      "num_negative_consequences": 2,
+      "has_compliance_tags": true,
+      "num_projects": 2
+    },
+    "label": "major",
+    "id": "ADR-0008"
   }
 ]

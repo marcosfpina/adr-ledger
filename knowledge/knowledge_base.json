@@ -2,20 +2,292 @@
   "meta": {
     "type": "adr_knowledge_base",
     "version": "1.0",
-    "generated_at": "2026-01-10T19:35:37.164846",
-    "total_decisions": 5,
+    "generated_at": "2026-01-22T00:15:17.154931",
+    "total_decisions": 10,
     "by_status": {
-      "accepted": 5
+      "accepted": 10
     },
     "by_project": {
-      "CEREBRO": 2,
-      "GLOBAL": 5,
-      "PHANTOM": 2,
-      "SPECTRE": 2,
-      "NEUTRON": 2
+      "NEUTRON": 5,
+      "CEREBRO": 6,
+      "SPECTRE": 3,
+      "PHANTOM": 5,
+      "GLOBAL": 6
     }
   },
   "decisions": [
+    {
+      "id": "ADR-0009",
+      "type": "architecture_decision",
+      "title": "Adaptive ML Pipeline Orchestration (Temporal + Ray + MLflow)",
+      "status": "accepted",
+      "summary": "[ADR-0009] Adaptive ML Pipeline Orchestration (Temporal + Ray + MLflow): Adopt **Temporal + Ray + MLflow** stack for adaptive ML orchestration.\n\n### Architecture\n\n```\n┌─────...",
+      "scope": {
+        "projects": [
+          "NEUTRON",
+          "CEREBRO"
+        ],
+        "layers": [
+          "ml",
+          "infrastructure"
+        ]
+      },
+      "knowledge": {
+        "what": "Adopt **Temporal + Ray + MLflow** stack for adaptive ML orchestration.\n\n### Architecture\n\n```\n┌────────────────────────────────────────────────────────────────┐\n│                    NEUTRON ML STACK                            │\n├────────────────────────────────────────────────────────────────┤\n│                                                                │\n│  ┌──────────────────────────────────────────────────────────┐ │\n│  │              TEMPORAL (Workflow Orchestration)            │ │\n│  │                                                           │ │\n│  │  Workflow: AdaptiveMLPipelineWorkflow                     │ │\n│  │    1. Validate GCP credits (CEREBRO)                     │ │\n│  │    2. Setup MLflow experiment                            │ │\n│  │    3. FOR each phase (adaptive):                         │ │\n│  │         - Select strategy (GRID/RANDOM/BAYESIAN/EVOL)    │ │\n│  │         - Execute trials (Ray actors)                    │ │\n│  │         - Analyze results → decide next strategy         │ │\n│  │    4. Return best hyperparameters                        │ │\n│  │                                                           │ │\n│  │  Features:                                                │ │\n│  │    • Durable execution (survives crashes)                │ │\n│  │    • Deterministic replay (same inputs → same outputs)   │ │\n│  │    • Query support (runtime introspection)               │ │\n│  │    • Versioning (workflow code changes don't break runs) │ │\n│  └────────────────────┬─────────────────────────────────────┘ │\n│                       │                                        │\n│                       ▼                                        │\n│  ┌──────────────────────────────────────────────────────────┐ │\n│  │              RAY (Distributed Compute)                    │ │\n│  │                                                           │ │\n│  │  Actor: TrainerPool                                       │ │\n│  │    - Stateful: Keeps model in GPU VRAM                   │ │\n│  │    - Parallel: 4-8 actors (GPU-dependent)                │ │\n│  │    - Resilient: Auto-restart on failure                  │ │\n│  │                                                           │ │\n│  │  Benefits:                                                │ │\n│  │    • Model caching (1 load → N trials)                   │ │\n│  │    • GPU scheduling (optimal utilization)                │ │\n│  │    • Distributed (multi-node clusters)                   │ │\n│  │    • Fault tolerance (actor supervision)                 │ │\n│  └────────────────────┬─────────────────────────────────────┘ │\n│                       │                                        │\n│                       ▼                                        │\n│  ┌──────────────────────────────────────────────────────────┐ │\n│  │              MLFLOW (Experiment Tracking)                 │ │\n│  │                                                           │ │\n│  │  Tracks:                                                  │ │\n│  │    • Hyperparameters (lr, batch_size, epochs, ...)      │ │\n│  │    • Metrics (loss, accuracy, f1, ...)                   │ │\n│  │    • Artifacts (model checkpoints, plots, logs)          │ │\n│  │    • Code version (git commit hash)                      │ │\n│  │                                                           │ │\n│  │  UI: http://localhost:5000                               │ │\n│  │    - Compare experiments                                  │ │\n│  │    - Hyperparameter importance plots                     │ │\n│  │    - Download best model                                 │ │\n│  └──────────────────────────────────────────────────────────┘ │\n│                                                                │\n└────────────────────────────────────────────────────────────────┘\n```\n\n### Adaptive Hyperparameter Optimization\n\n**4 Strategies** (src/neutron/optimizer.py):\n\n1. **GRID**: Exhaustive systematic search (small discrete spaces)\n2. **RANDOM**: Fast exploration, good baseline (always solid)\n3. **BAYESIAN**: Sample-efficient, models uncertainty (expensive evals)\n4. **EVOLUTIONARY**: Creative discovery, finds unexpected regions\n\n**Adaptive Logic**:\n```python\n# Phase 1: Exploration (GRID)\ntrials_phase1 = run_trials(strategy=GRID, n=20)\nconvergence = analyze_convergence(trials_phase1)\n\nif convergence < 0.8:  # Not converged, explore more\n    # Phase 2: Random exploration\n    trials_phase2 = run_trials(strategy=RANDOM, n=20)\nelse:\n    # Phase 2: Exploitation (BAYESIAN)\n    trials_phase2 = run_trials(strategy=BAYESIAN, n=10)\n\n# Phase 3: Final refinement (EVOLUTIONARY or BAYESIAN)\nbest_region = identify_promising_region(trials_phase1 + trials_phase2)\ntrials_phase3 = run_trials(strategy=BAYESIAN, n=10, focus=best_region)\n```\n\n**Why Adaptive?**\n- Fixed GRID: Wastes trials on unimportant dimensions\n- Fixed RANDOM: May miss optima in complex spaces\n- **Adaptive**: Starts broad (GRID/RANDOM), narrows to promising regions (BAYESIAN)\n\n### Temporal Durable Execution\n\n**Problem** (Airflow):\n```python\n# Airflow DAG\ndef train_workflow():\n    for i in range(50):\n        train_model(trial=i)  # Trial 25: Server crashes\n    # On restart: Start from trial 0 again (lost 25 trials)\n```\n\n**Solution** (Temporal):\n```python\n# Temporal workflow\n@workflow.defn\nclass AdaptiveMLPipelineWorkflow:\n    @workflow.run\n    async def run(self, config: PipelineConfig):\n        for i in range(50):\n            result = await workflow.execute_activity(\n                train_model_activity,\n                args=(i,),\n                start_to_close_timeout=timedelta(minutes=10)\n            )\n            # Trial 25: Server crashes\n            # On restart: Temporal replays from event log\n            # Resumes at trial 26 (deterministic replay)\n```\n\n**Benefits**:\n- Crash recovery: Resume from last completed activity\n- Deterministic: Same inputs → same outputs (reproducibility)\n- Long-running: Workflows can run for days/weeks\n\n### Ray Stateful Actors\n\n**Problem** (Celery):\n```python\n# Celery task (stateless)\n@task\ndef train_trial(hyperparams):\n    model = load_model()  # Loads from disk every trial (slow)\n    result = train(model, hyperparams)\n    return result\n```\n\n**Solution** (Ray):\n```python\n# Ray actor (stateful)\n@ray.remote(num_gpus=1)\nclass TrainerPool:\n    def __init__(self):\n        self.model = load_model()  # Load once, cache in GPU VRAM\n\n    def train_trial(self, hyperparams):\n        # Model already in VRAM, instant access\n        result = train(self.model, hyperparams)\n        return result\n\n# Spawn 4 actors (reuse across trials)\nactors = [TrainerPool.remote() for _ in range(4)]\nresults = ray.get([actor.train_trial.remote(hp) for actor in actors])\n```\n\n**Benefits**:\n- **Speed**: 1 model load → 50 trials (vs 50 loads)\n- **GPU efficiency**: Model stays resident in VRAM\n- **Parallelism**: 4 actors = 4× throughput",
+        "why": "NEUTRON orchestrates ML workflows for hyperparameter optimization, model training, and experimentation.\n\n### Problem: Manual Hyperparameter Tuning\n\n**Traditional Approach**:\n```python\n# Engineer manually tries hyperparameters\nfor lr in [0.001, 0.01, 0.1]:\n    for batch_size in [32, 64, 128]:\n        model = train_model(lr=lr, batch_size=batch_size)\n        accuracy = evaluate(model)\n        print(f\"lr={lr}, batch_size={batch_size}, accuracy={accuracy}\")\n        # Manually log to CSV\n```\n\n**Problems**:\n- **Time-consuming**: Engineer babysits training runs\n- **No fault tolerance**: Crash loses all progress\n- **Suboptimal**: No intelligent search strategy\n- **Poor tracking**: CSV files, manual notes\n- **Wasted GPU**: Redundant model loads per trial",
+        "implications": {
+          "positive": [
+            "Adaptive strategy switching: GRID → RANDOM → BAYESIAN automatically",
+            "Fault tolerance: Workflows survive crashes, resume from last checkpoint",
+            "GPU efficiency: Ray actors cache models, avoid redundant loads",
+            "Experiment reproducibility: MLflow tracks every hyperparameter, metric, artifact",
+            "Scalability: Ray distributed compute (multi-node GPU clusters)"
+          ],
+          "negative": [
+            "Operational complexity: 3 systems to manage (Temporal, Ray, MLflow)",
+            "Learning curve: Temporal deterministic execution model non-intuitive"
+          ]
+        },
+        "alternatives_rejected": [
+          "Airflow (traditional ML orchestration)",
+          "Kubeflow Pipelines",
+          "Optuna + Celery"
+        ]
+      },
+      "questions": [
+        "Por que Temporal em vez de Airflow?",
+        "Como funciona adaptive hyperparameter optimization?",
+        "Como Ray gerencia GPU resources?"
+      ],
+      "keywords": [
+        "Temporal",
+        "Ray",
+        "MLflow",
+        "hyperparameter optimization",
+        "adaptive workflows",
+        "NEUTRON"
+      ],
+      "concepts": [
+        "Durable Execution",
+        "Adaptive Hyperparameter Optimization",
+        "Stateful Actors",
+        "Experiment Tracking"
+      ],
+      "relations": {
+        "supersedes": [],
+        "related": [
+          "ADR-0005",
+          "ADR-0006",
+          "ADR-0008"
+        ],
+        "enables": []
+      },
+      "governance": {
+        "classification": "major",
+        "compliance": [
+          "ML",
+          "INFRASTRUCTURE",
+          "ORCHESTRATION"
+        ]
+      },
+      "metadata": {
+        "date": "2026-01-11",
+        "version": 1,
+        "hash": "76782d515013",
+        "embedding_priority": "high"
+      }
+    },
+    {
+      "id": "ADR-0006",
+      "type": "architecture_decision",
+      "title": "Event-Driven Architecture via NATS JetStream (SPECTRE)",
+      "status": "accepted",
+      "summary": "[ADR-0006] Event-Driven Architecture via NATS JetStream (SPECTRE): Adotamos **Event-Driven Architecture (EDA)** usando **NATS JetStream** como message broker central.\n...",
+      "scope": {
+        "projects": [
+          "SPECTRE",
+          "PHANTOM",
+          "CEREBRO",
+          "NEUTRON",
+          "GLOBAL"
+        ],
+        "layers": [
+          "infrastructure",
+          "api"
+        ]
+      },
+      "knowledge": {
+        "what": "Adotamos **Event-Driven Architecture (EDA)** usando **NATS JetStream** como message broker central.\n\n### Arquitetura SPECTRE Fleet\n\n```\n┌────────────────────────────────────────────────────────────────┐\n│                        SPECTRE FLEET                           │\n│                  Event-Driven Microservices                    │\n├────────────────────────────────────────────────────────────────┤\n│                                                                │\n│  ┌──────────────────────────────────────────────────────────┐ │\n│  │                    ZERO-TRUST PROXY                       │ │\n│  │  • TLS termination                                        │ │\n│  │  • Authentication (API keys, JWT)                         │ │\n│  │  • Rate limiting (Token Bucket)                           │ │\n│  │  • Circuit breakers                                       │ │\n│  │  • HTTP/gRPC → NATS gateway                              │ │\n│  └────────────────────┬─────────────────────────────────────┘ │\n│                       │                                        │\n│                       ▼                                        │\n│  ┌──────────────────────────────────────────────────────────┐ │\n│  │              NATS JETSTREAM (Message Bus)                 │ │\n│  │                                                           │ │\n│  │  Subjects (30+ event types):                             │ │\n│  │    llm.request.v1, llm.response.v1                       │ │\n│  │    rag.query.v1, document.indexed.v1                     │ │\n│  │    inference.request.v1, vram.status.v1                  │ │\n│  │    system.metrics.v1, cost.incurred.v1                   │ │\n│  │                                                           │ │\n│  │  Patterns:                                                │ │\n│  │    • Pub/Sub: 1-to-many broadcast                        │ │\n│  │    • Request-Reply: Synchronous RPC                      │ │\n│  │    • Queue Groups: Load balancing                        │ │\n│  │                                                           │ │\n│  │  JetStream Features:                                      │ │\n│  │    • Persistent storage (7-day retention)                │ │\n│  │    • At-least-once delivery                              │ │\n│  │    • Horizontal scaling                                   │ │\n│  └────────────────────┬─────────────────────────────────────┘ │\n│                       │                                        │\n│         ┌─────────────┼─────────────┐                          │\n│         ▼             ▼             ▼                          │\n│  ┌──────────┐  ┌──────────┐  ┌──────────┐                     │\n│  │ CEREBRO  │  │ PHANTOM  │  │ ml-offload│                    │\n│  │          │  │          │  │    -api   │                    │\n│  │ Subscribe│  │ Subscribe│  │ Subscribe │                    │\n│  │ Publish  │  │ Publish  │  │ Publish   │                    │\n│  └──────────┘  └──────────┘  └──────────┘                     │\n│         │             │             │                          │\n│         └─────────────┼─────────────┘                          │\n│                       ▼                                        │\n│  ┌──────────────────────────────────────────────────────────┐ │\n│  │              OBSERVABILITY ENGINE                         │ │\n│  │                                                           │ │\n│  │  • Wildcard subscriber: captures ALL events              │ │\n│  │  • TimescaleDB: Time-series storage (metrics over time)  │ │\n│  │  • Neo4j: Service dependency graph                       │ │\n│  │  • ML Anomaly Detection: Pattern recognition             │ │\n│  └──────────────────────────────────────────────────────────┘ │\n│                                                                │\n└────────────────────────────────────────────────────────────────┘\n```\n\n### Event Schema Example\n\n```rust\n// Event structure (spectre-events crate)\npub struct Event {\n    pub id: EventId,              // UUID for deduplication\n    pub event_type: EventType,    // Enum: LlmRequest, RagQuery, etc\n    pub timestamp: DateTime<Utc>, // ISO 8601\n    pub service_id: ServiceId,    // Publisher identifier\n    pub correlation_id: CorrelationId, // Trace across services\n    pub payload: serde_json::Value,    // Type-specific data\n}\n\n// Example: RAG query event\nEventType::RagQuery {\n  payload: {\n    \"query\": \"How does auth work?\",\n    \"top_k\": 5,\n    \"filters\": {\"project\": \"CEREBRO\"}\n  }\n}\n```\n\n### Communication Patterns\n\n#### 1. Pub/Sub (1-to-many)\n\n```rust\n// Publisher: PHANTOM publishes document indexed\nlet event = Event::new(\n    EventType::DocumentIndexed,\n    service_id,\n    json!({\"document_id\": \"doc-123\", \"chunks\": 42})\n);\nbus.publish(&event).await?;\n\n// Subscribers: CEREBRO, SPECTRE observability\n// Both receive the same event simultaneously\n```\n\n#### 2. Request-Reply (Synchronous RPC)\n\n```rust\n// CEREBRO requests LLM inference\nlet request = Event::new(EventType::LlmRequest, ...);\nlet response = bus.request(&request, timeout).await?;\n// Blocks until reply or timeout\n```\n\n#### 3. Queue Groups (Load Balancing)\n\n```rust\n// 3 ml-offload-api workers subscribe to same subject\nlet sub = bus.subscribe_queue(\"inference.request.v1\", \"ml-workers\").await?;\n// NATS delivers each message to ONE worker (round-robin)\n```\n\n### Event Versioning Strategy\n\nEvents use semantic versioning in subject names:\n\n- `llm.request.v1` - Initial version\n- `llm.request.v2` - Breaking change (new required field)\n- Both versions coexist during migration period\n- Subscribers can subscribe to both: `llm.request.*`",
+        "why": "A stack inteligente (CEREBRO, PHANTOM, NEUTRON) está crescendo em complexidade:\n\n- **CEREBRO**: Knowledge extraction, RAG queries, GCP credit management\n- **PHANTOM**: Document intelligence, semantic chunking, LLM classification\n- **NEUTRON**: ML orchestration, adaptive pipelines, infrastructure management\n- **Domain services**: ai-agent-os (system monitoring), securellm-bridge (LLM proxy), ml-offload-api (inference), ragtex (RAG), arch-analyzer (NixOS analysis)\n\n### Problema: Tight Coupling com REST APIs\n\nA abordagem tradicional seria REST APIs diretas:\n\n```\nCEREBRO --HTTP--> PHANTOM --HTTP--> ml-offload-api\n   |                |\n   |                +--HTTP--> ragtex\n   |\n   +--HTTP--> NEUTRON --HTTP--> securellm-bridge\n```\n\n**Problemas observados**:\n\n1. **Tight Coupling**: CEREBRO precisa conhecer endpoints de PHANTOM, ragtex, ml-offload-api\n2. **Cascading Failures**: Se ml-offload-api cai, PHANTOM falha, CEREBRO falha\n3. **Manual Retry Logic**: Cada serviço implementa próprio retry, circuit breaker, timeout\n4. **Zero Observability**: Sem visibilidade centralizada de requests cross-service\n5. **Scaling Complexity**: Escalar PHANTOM requer atualizar load balancer, DNS, service discovery\n\n### Exemplo Concreto: RAG Query Workflow\n\n**Workflow atual (REST, tight coupling)**:\n\n1. User: `cerebro rag query \"How does auth work?\"`\n2. CEREBRO → HTTP POST `/phantom/analyze` (bloqueante)\n3. PHANTOM → HTTP POST `/ml-offload-api/inference` (bloqueante)\n4. ml-offload-api → processa → retorna response\n5. PHANTOM → processa → retorna response\n6. CEREBRO → retorna ao user\n\n**Problemas**:\n- Se ml-offload-api timeout (30s), PHANTOM timeout, CEREBRO timeout\n- User aguarda 30s sem feedback\n- Retry manual em cada camada\n- Logs fragmentados (3 serviços, 3 formatos diferentes)",
+        "implications": {
+          "positive": [
+            "Loose coupling: services communicate only via events, no direct dependencies",
+            "Fault isolation: service failure doesn't cascade (persistent queue buffers events)",
+            "Observability: every event captured for monitoring, audit, replay",
+            "Scalability: services scale independently based on queue depth",
+            "Built-in patterns: pub/sub, request-reply, queue groups (load balancing)",
+            "High throughput: NATS 1M+ msgs/sec, JetStream adds persistence",
+            "Zero-trust ready: TLS, auth, secrets management integrated"
+          ],
+          "negative": [
+            "Eventual consistency: no guarantee of immediate state sync across services",
+            "Debugging complexity: distributed traces harder than stack traces",
+            "Event schema management: breaking changes require versioning strategy",
+            "NATS as SPOF: if message bus down, entire fleet degraded"
+          ]
+        },
+        "alternatives_rejected": [
+          "Direct REST APIs (current state)",
+          "GraphQL Federation",
+          "Apache Kafka",
+          "RabbitMQ"
+        ]
+      },
+      "questions": [
+        "Por que event-driven em vez de REST APIs?",
+        "Por que NATS em vez de Kafka ou RabbitMQ?",
+        "Como os serviços se comunicam na stack?",
+        "Como garantir fault tolerance com NATS?",
+        "Como fazer observability de eventos?"
+      ],
+      "keywords": [
+        "event-driven",
+        "NATS",
+        "JetStream",
+        "microservices",
+        "async messaging",
+        "pub/sub",
+        "request-reply",
+        "observability",
+        "SPECTRE"
+      ],
+      "concepts": [
+        "Event-Driven Architecture",
+        "Loose Coupling",
+        "Fault Isolation",
+        "Eventual Consistency",
+        "Message Broker",
+        "Queue Groups",
+        "Event Sourcing"
+      ],
+      "relations": {
+        "supersedes": [],
+        "related": [
+          "ADR-0001",
+          "ADR-0005"
+        ],
+        "enables": [
+          "ADR-0007",
+          "ADR-0008",
+          "ADR-0009"
+        ]
+      },
+      "governance": {
+        "classification": "critical",
+        "compliance": [
+          "ARCHITECTURE",
+          "COMMUNICATION",
+          "SCALABILITY"
+        ]
+      },
+      "metadata": {
+        "date": "2026-01-11",
+        "version": 1,
+        "hash": "d8237a2ebd15",
+        "embedding_priority": "critical"
+      }
+    },
+    {
+      "id": "ADR-0010",
+      "type": "architecture_decision",
+      "title": "PHANTOM Production Readiness Assessment & Roadmap",
+      "status": "accepted",
+      "summary": "[ADR-0010] PHANTOM Production Readiness Assessment & Roadmap: **Adotar roadmap incremental de 4 sprints** para atingir production readiness, priorizando gaps Tier...",
+      "scope": {
+        "projects": [
+          "PHANTOM"
+        ],
+        "layers": [
+          "application",
+          "infrastructure",
+          "security",
+          "observability"
+        ]
+      },
+      "knowledge": {
+        "what": "**Adotar roadmap incremental de 4 sprints** para atingir production readiness, priorizando gaps Tier 1 (críticos) primeiro.\n\n### Princípios Norteadores\n\n1. **Security-First**: Autenticação e hardening em Sprint 1\n2. **Observability-Driven**: Metrics desde Sprint 1, full stack em Sprint 3\n3. **Incremental**: Cada sprint entrega valor isolado\n4. **SLO-Oriented**: Definir e medir SLOs desde o início\n\n### Target SLOs (Service Level Objectives)\n\n```yaml\nSLOs:\n  availability:\n    target: 99.9%\n    measurement_window: 30d\n    error_budget: 43.2min/month\n\n  latency:\n    p50: <200ms\n    p95: <500ms\n    p99: <1000ms\n    measurement: /process endpoint\n\n  error_rate:\n    target: <0.1%\n    excludes: [4xx client errors]\n\n  throughput:\n    target: 100 docs/min (single instance)\n    scale_trigger: 80% capacity\n\n  data_durability:\n    target: 99.999%\n    backup_frequency: 1h\n    recovery_time: <15min\n```",
+        "why": "**PHANTOM v2.0** é um framework ML \"living\" para document intelligence, RAG pipelines e classificação de documentos. O projeto combina:\n\n- **Python Core**: CortexProcessor, RAG pipeline, sentiment analysis\n- **Rust Components**: IntelAgent (GTK4), Cortex Desktop (Tauri)\n- **Infrastructure**: Nix flake para reprodutibilidade, CI/CD robusto\n\n### Estado Atual (2026-01-14)\n\n**✅ Pontos Fortes Implementados**:\n\n```\n✓ CI/CD GitHub Actions completo (lint, test, build, security scan)\n✓ Nix environment reprodutível (Python 3.13 + Rust + deps)\n✓ Security scanning (bandit, cargo audit, detect-secrets)\n✓ Type safety (Pydantic models, mypy hints)\n✓ Pre-commit hooks + conventional commits\n✓ Documentação excelente (CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md)\n✓ Testes funcionando (24 test cases, 100% pass rate recente)\n✓ Multi-linguagem (Python + Rust hybrid)\n✓ Modular architecture (core, rag, analysis, pipeline, providers, api, cli)\n```\n\n**❌ Gaps Críticos para Produção**:\n\n### 🔴 Tier 1: Bloqueadores (Sem isso, produção = inseguro/inviável)\n\n#### 1. API Incompleta & Insegura\n```python\n# src/phantom/api/app.py - Endpoints com TODOs\n@app.post(\"/extract\")\nasync def extract(request: ExtractRequest):\n    # TODO: Implement using CortexProcessor  ❌\n    insights = {\"themes\": [], ...}  # Mock response\n\n@app.post(\"/rag/query\")\nasync def rag_query(question: str):\n    # TODO: Implement RAG query  ❌\n    return {\"answer\": \"RAG pipeline not yet implemented\"}\n```\n\n**Riscos**:\n- Endpoints não funcionais em produção\n- Sem autenticação (qualquer um pode chamar API)\n- Sem rate limiting (vulnerável a DoS)\n- Sem validação de input size (OOM attacks)\n\n#### 2. Zero Observabilidade\n```\n❌ Nenhum metric export (Prometheus, StatsD)\n❌ Sem distributed tracing (OpenTelemetry, Jaeger)\n❌ Logging não estruturado (print statements, não JSON)\n❌ Sem alertas configurados\n❌ Sem dashboards (Grafana)\n```\n\n**Impacto**: Cego em produção. Quando algo quebra, sem telemetria para debug.\n\n#### 3. Sem Persistência\n```\n❌ Nenhum banco de dados (dependência de arquivos locais)\n❌ Sem migrations (Alembic)\n❌ Sem backup strategy\n❌ Sem cache distribuído (Redis/Memcached)\n```\n\n**Impacto**: Não escalável, sem state management, perda de dados em crash.\n\n#### 4. Containerização Ausente\n```bash\n$ find . -name \"Dockerfile*\"\n# (nenhum resultado)\n\n$ find . -name \"docker-compose*\"\n# (nenhum resultado)\n\n$ find . -name \"*k8s*\" -o -name \"*kubernetes*\"\n# (nenhum resultado)\n```\n\n**Impacto**: Sem estratégia de deployment. Como fazer deploy? VM manual? Não reproduzível.\n\n#### 5. Segurança\n```python\n# API sem autenticação implementada\n@app.post(\"/process\")\nasync def process(file: UploadFile):\n    # ❌ Qualquer um pode fazer upload\n    # ❌ Sem verificação de API key\n    # ❌ Sem rate limiting\n    # ❌ Sem validação de tamanho de arquivo\n```\n\n**Riscos**:\n- Acesso não autorizado\n- Resource exhaustion attacks\n- Data exfiltration\n- Compliance violations (sem audit logs)\n\n### 🟡 Tier 2: Alta Prioridade (Produção funciona, mas frágil)\n\n#### 6. Resiliência\n```\n❌ Sem circuit breakers\n❌ Retry policies não documentadas\n❌ Graceful shutdown não implementado\n❌ Health checks básicos (apenas /health simples)\n⚠️  Sem readiness/liveness probes para K8s\n```\n\n#### 7. Escalabilidade\n```\n❌ Processamento síncrono (blocking I/O)\n❌ Sem queue system (Celery, RabbitMQ)\n❌ Worker pools configuráveis mas não otimizados\n❌ Sem sharding para vector stores\n```\n\n#### 8. Testes\n```\n✓ 24 testes encontrados (bom início)\n❌ Coverage provavelmente <50% (não medido)\n❌ Sem testes de carga/stress\n❌ Sem testes end-to-end\n❌ Sem benchmarks de performance\n```\n\n### 🟢 Tier 3: Desejável (Nice to have, não blocker)\n\n#### 9. Documentação\n```\n✓ API docs estrutura existe (FastAPI Swagger)\n❌ Endpoints incompletos = docs incompletas\n❌ Sem guia de deployment\n❌ Sem runbooks para troubleshooting\n❌ SLA/SLO não definidos\n```\n\n#### 10. DevOps\n```\n✓ CI robusto (lint, test, build, security)\n⚠️  CD parcial (release workflow existe mas não testado)\n❌ Sem smoke tests pós-deploy\n❌ Sem rollback automático\n❌ Sem canary deployments\n```",
+        "implications": {
+          "positive": [
+            "Roadmap claro de 4 sprints para production readiness",
+            "Priorização de gaps críticos (segurança, observabilidade, resiliência)",
+            "Preserva investimento em código Python/Rust de qualidade",
+            "Stack incrementalmente escalável (começa simples, escala conforme necessário)",
+            "SLOs definidos (99.9% uptime, <500ms P95, <0.1% error rate)"
+          ],
+          "negative": [
+            "4-6 semanas de desenvolvimento antes de production",
+            "Overhead operacional de novos componentes (PostgreSQL, Redis, Prometheus)",
+            "Necessidade de expertise adicional (K8s, observability stack)"
+          ]
+        },
+        "alternatives_rejected": [
+          "Deploy as-is com workarounds manuais",
+          "Reescrever do zero com stack enterprise",
+          "Incrementar iterativamente (escolhida)"
+        ]
+      },
+      "questions": [
+        "O PHANTOM está pronto para produção?",
+        "Quais são os gaps críticos para deploy?",
+        "Qual o roadmap para production readiness?",
+        "Quais SLOs devemos atingir?"
+      ],
+      "keywords": [
+        "PHANTOM",
+        "production readiness",
+        "containerization",
+        "observability",
+        "security hardening",
+        "Kubernetes",
+        "PostgreSQL",
+        "Redis",
+        "Prometheus"
+      ],
+      "concepts": [
+        "Production Readiness Assessment",
+        "Incremental Hardening",
+        "SLO-Driven Development",
+        "Security-First Architecture"
+      ],
+      "relations": {
+        "supersedes": [],
+        "related": [
+          "ADR-0005",
+          "ADR-0009"
+        ],
+        "enables": [
+          "PHANTOM v2.0 Production Deployment",
+          "Multi-tenant PHANTOM instances",
+          "Enterprise PHANTOM adoption"
+        ]
+      },
+      "governance": {
+        "classification": "critical",
+        "compliance": [
+          "PRODUCTION",
+          "INFRASTRUCTURE",
+          "SECURITY",
+          "ML"
+        ]
+      },
+      "metadata": {
+        "date": "2026-01-14",
+        "version": 1,
+        "hash": "0a8840888ddb",
+        "embedding_priority": "critical"
+      }
+    },
     {
       "id": "ADR-0002",
       "type": "architecture_decision",
@@ -98,6 +370,100 @@
         "version": 1,
         "hash": "8d716857093d",
         "embedding_priority": "critical"
+      }
+    },
+    {
+      "id": "ADR-0007",
+      "type": "architecture_decision",
+      "title": "Local-First AI Strategy com Hybrid Cloud Fallback (PHANTOM)",
+      "status": "accepted",
+      "summary": "[ADR-0007] Local-First AI Strategy com Hybrid Cloud Fallback (PHANTOM): Adotamos **Local-First AI Strategy** com **Hybrid Cloud Fallback**.\n\n### Architecture\n\n```\n┌────────...",
+      "scope": {
+        "projects": [
+          "PHANTOM",
+          "CEREBRO"
+        ],
+        "layers": [
+          "ml",
+          "data"
+        ]
+      },
+      "knowledge": {
+        "what": "Adotamos **Local-First AI Strategy** com **Hybrid Cloud Fallback**.\n\n### Architecture\n\n```\n┌────────────────────────────────────────────────────────────────┐\n│                    PHANTOM AI STACK                            │\n│                  Local-First + Hybrid Cloud                    │\n├────────────────────────────────────────────────────────────────┤\n│                                                                │\n│  ┌──────────────────────────────────────────────────────────┐ │\n│  │                  LLM PROVIDER ABSTRACTION                 │ │\n│  │                                                           │ │\n│  │  Trait: LLMProvider                                       │ │\n│  │    - infer(prompt: str) -> str                           │ │\n│  │    - estimate_cost(tokens: int) -> float                 │ │\n│  │    - check_availability() -> bool                        │ │\n│  │                                                           │ │\n│  │  Implementations:                                         │ │\n│  │    1. LlamaCppProvider (PRIMARY - 95% traffic)           │ │\n│  │    2. OpenAIProvider (FALLBACK - 5% complex queries)     │ │\n│  │    3. DeepSeekProvider (BUDGET - cheap alternative)      │ │\n│  │    4. GCPVertexProvider (ENTERPRISE - Vertex AI)         │ │\n│  └──────────────────────────────────────────────────────────┘ │\n│                       │                                        │\n│         ┌─────────────┼─────────────┐                          │\n│         ▼             ▼             ▼                          │\n│  ┌──────────┐  ┌──────────┐  ┌──────────┐                     │\n│  │ llama.cpp│  │ OpenAI   │  │ DeepSeek │                     │\n│  │ (LOCAL)  │  │ (CLOUD)  │  │ (CLOUD)  │                     │\n│  │          │  │          │  │          │                     │\n│  │ Model:   │  │ Model:   │  │ Model:   │                     │\n│  │ Llama 3  │  │ GPT-4    │  │ DeepSeek │                     │\n│  │ 8B Q4    │  │ Turbo    │  │ V2       │                     │\n│  │          │  │          │  │          │                     │\n│  │ Cost:    │  │ Cost:    │  │ Cost:    │                     │\n│  │ ~$0.001/ │  │ $0.03/   │  │ $0.001/  │                     │\n│  │ 1K tok   │  │ 1K tok   │  │ 1K tok   │                     │\n│  │          │  │          │  │          │                     │\n│  │ Latency: │  │ Latency: │  │ Latency: │                     │\n│  │ 20-50ms  │  │ 200-500ms│  │ 150-300ms│                     │\n│  │          │  │          │  │          │                     │\n│  │ VRAM:    │  │ Internet │  │ Internet │                     │\n│  │ 6GB      │  │ Required │  │ Required │                     │\n│  └──────────┘  └──────────┘  └──────────┘                     │\n│                                                                │\n│  ┌──────────────────────────────────────────────────────────┐ │\n│  │                  VECTOR STORE (FAISS)                     │ │\n│  │                                                           │ │\n│  │  • Local-first: CPU/GPU indexing                         │ │\n│  │  • IndexFlatL2: Brute-force exact search (small scale)   │ │\n│  │  • IndexIVFFlat: Inverted index (medium scale)           │ │\n│  │  • IndexHNSW: Hierarchical graph (large scale)           │ │\n│  │                                                           │ │\n│  │  Storage: Disk persistence (faiss.write_index)           │ │\n│  │  Search: <10ms for 100k vectors                          │ │\n│  │  Cost: $0 (local RAM/VRAM)                               │ │\n│  └──────────────────────────────────────────────────────────┘ │\n│                                                                │\n│  ┌──────────────────────────────────────────────────────────┐ │\n│  │              EMBEDDING GENERATOR                          │ │\n│  │                                                           │ │\n│  │  Model: sentence-transformers/all-MiniLM-L6-v2           │ │\n│  │  Dimensions: 384                                          │ │\n│  │  Speed: 333 docs/min (GPU), 150 docs/min (CPU)           │ │\n│  │  Quality: Cosine similarity 0.85+ for semantic matches   │ │\n│  │  Cost: $0 (local)                                        │ │\n│  └──────────────────────────────────────────────────────────┘ │\n│                                                                │\n└────────────────────────────────────────────────────────────────┘\n```\n\n### Hybrid Cloud Strategy\n\n**Decision Matrix**: When to use local vs cloud?\n\n```python\ndef select_provider(task: Task) -> LLMProvider:\n    \"\"\"Smart provider selection based on task characteristics.\"\"\"\n\n    # Priority 1: Use local if available and sufficient\n    if llamacpp.is_available() and task.complexity < THRESHOLD_COMPLEX:\n        # 95% of tasks: routine classification, summarization\n        return LlamaCppProvider()\n\n    # Priority 2: Use cloud for complex reasoning\n    if task.complexity >= THRESHOLD_COMPLEX:\n        # 5% of tasks: complex analysis, multi-step reasoning\n        if budget.has_credits():\n            return OpenAIProvider()  # Best quality\n        else:\n            return DeepSeekProvider()  # Budget fallback\n\n    # Priority 3: Fallback if local unavailable\n    if not llamacpp.is_available():\n        log.warning(\"Local inference down, using cloud fallback\")\n        return DeepSeekProvider()  # Cheaper than OpenAI\n```\n\n**Complexity Heuristics**:\n- **Simple** (local): Extract keywords, summarize <500 tokens, classify into known categories\n- **Complex** (cloud): Multi-document reasoning, creative generation, ambiguous edge cases\n\n### llama.cpp Integration\n\n**Model Selection**:\n```\nModel: Meta-Llama-3-8B-Instruct-Q4_K_M.gguf\nQuantization: Q4_K_M (4-bit, medium quality)\nSize: 4.9GB\nVRAM: 6GB (model + context + overhead)\nPerformance: 25 tokens/sec (RTX 4090)\nQuality: 85-90% of full fp16 model\n```\n\n**Server Setup**:\n```bash\n# llama.cpp server (OpenAI-compatible API)\n./llama-server \\\n  --model models/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf \\\n  --ctx-size 4096 \\\n  --n-gpu-layers 35 \\  # All layers on GPU\n  --host 0.0.0.0 \\\n  --port 8080 \\\n  --parallel 4 \\       # Handle 4 requests concurrently\n  --threads 8\n```\n\n**PHANTOM Integration**:\n```python\n# src/phantom/providers/llamacpp.py\nclass LlamaCppProvider(LLMProvider):\n    def __init__(self, base_url=\"http://localhost:8080\"):\n        self.client = openai.Client(base_url=base_url, api_key=\"dummy\")\n\n    def infer(self, prompt: str, max_tokens: int = 512) -> str:\n        response = self.client.chat.completions.create(\n            model=\"llama-3-8b-instruct\",\n            messages=[{\"role\": \"user\", \"content\": prompt}],\n            max_tokens=max_tokens,\n            temperature=0.7\n        )\n        return response.choices[0].message.content\n\n    def estimate_cost(self, tokens: int) -> float:\n        # Electricity: RTX 4090 = 450W, $0.12/kWh\n        # 25 tokens/sec → 3600 tokens/minute\n        # Cost: (450W / 1000) * $0.12 * (tokens / 3600 / 60)\n        return (0.45 * 0.12 * tokens) / (3600 * 60)  # ~$0.0000015/token\n```\n\n### FAISS Vector Store\n\n**Index Strategy**:\n```python\n# src/phantom/rag/vectors.py\nclass FAISSVectorStore:\n    def __init__(self, dimension: int = 384):\n        # Small scale (<10k vectors): Exact search\n        if expected_size < 10_000:\n            self.index = faiss.IndexFlatL2(dimension)\n\n        # Medium scale (10k-1M vectors): Inverted index\n        elif expected_size < 1_000_000:\n            quantizer = faiss.IndexFlatL2(dimension)\n            self.index = faiss.IndexIVFFlat(quantizer, dimension, nlist=100)\n\n        # Large scale (>1M vectors): HNSW graph\n        else:\n            self.index = faiss.IndexHNSWFlat(dimension, M=32)\n\n    def search(self, query_vector: np.ndarray, top_k: int = 5):\n        distances, indices = self.index.search(query_vector, top_k)\n        return [\n            SearchResult(\n                document_id=self.id_map[idx],\n                distance=dist,\n                metadata=self.metadata[idx]\n            )\n            for idx, dist in zip(indices[0], distances[0])\n        ]\n```\n\n**Performance** (RTX 4090):\n- Indexing: 60k vectors/min\n- Search: <10ms for 100k vectors (exact)\n- Storage: ~1.5KB per vector (384 dims × 4 bytes)",
+        "why": "PHANTOM (v2.0.0, CORTEX-UNIFIED) é um document intelligence framework que realiza:\n\n1. **Semantic Chunking**: Divide documentos em chunks de 1024 tokens com overlap de 128\n2. **LLM Classification**: Extrai themes, patterns, concepts, learnings via LLM\n3. **Vector Embedding**: Gera embeddings para similarity search\n4. **FAISS Indexing**: Indexa vectors para retrieval\n\n### Problema: Cloud API Costs Insustentáveis\n\n**Cenário Real**: Analisar codebase de 10k arquivos Python\n\n**Cálculo de Custos (Cloud-Only)**:\n```\nFiles: 10,000\nAvg file size: 500 lines = ~1500 tokens\nTotal tokens: 10k × 1500 = 15M tokens\n\nOpenAI GPT-4 Turbo:\n  Input: 15M × $0.03/1K = $450\n  Output: 15M × 0.2 (20% response) × $0.06/1K = $180\n  Total: $630 para uma única análise\n\nAnthropic Claude Opus:\n  Input: 15M × $0.015/1K = $225\n  Output: 15M × 0.2 × $0.075/1K = $225\n  Total: $450\n\nIterações: 5 análises durante development\nTotal: $2250-$3150\n```\n\n**Problemas Adicionais**:\n- **Rate Limits**: OpenAI tier 2 = 10k req/min → 10k files levam ≥1 minuto (single-threaded)\n- **Data Privacy**: Código proprietário enviado para OpenAI servers (US)\n- **Latency**: 200-500ms por request × 10k = 33-83 minutos total time\n- **Vendor Lock-in**: API changes, pricing increases, deprecations\n\n### Performance Requirements\n\n| Task                | Volume               | Latency Target    | Cost Target       |\n|---------------------|----------------------|-------------------|-------------------|\n| Semantic Chunking   | 10k docs/hour        | <30ms/doc         | $0 (CPU-only)     |\n| LLM Classification  | 1k docs/hour         | <2s/doc           | <$0.01/doc        |\n| Vector Embedding    | 10k docs/hour        | <100ms/doc        | $0 (local GPU)    |\n| FAISS Search        | 100k queries/hour    | <10ms/query       | $0 (RAM/VRAM)     |\n\n**Cloud APIs Cannot Meet These Targets**:\n- Cost: $0.63/doc (GPT-4) vs target $0.01/doc\n- Latency: 200-500ms vs target <2s total (chunking + classification + embedding)\n- Rate limits: 10k req/min vs target 1k docs/hour (17 req/min sustained)",
+        "implications": {
+          "positive": [
+            "Cost savings: Local inference ~$0.001/1K tokens (electricity) vs $0.03 (OpenAI)",
+            "Data privacy: Code never leaves infrastructure (LGPD, SOC2 compliance)",
+            "Low latency: 20-50ms local inference vs 200-500ms cloud API",
+            "No rate limits: Process millions of tokens/hour (limited only by GPU)",
+            "Offline capability: Full AI functionality without internet",
+            "Vendor independence: Llama models, GGUF format (community standard)",
+            "Reproducibility: Pinned model versions, bit-identical results"
+          ],
+          "negative": [
+            "GPU requirement: RTX 4090 (24GB VRAM) or similar for 13B models",
+            "Model management overhead: Downloads, quantization, version control",
+            "Slightly lower quality: Llama 3 70B ≈ GPT-3.5, not GPT-4 level",
+            "VRAM constraints: 7B models fit in 8GB, 13B in 16GB, 70B in 48GB+ (quantized)"
+          ]
+        },
+        "alternatives_rejected": [
+          "Cloud-Only (OpenAI, Anthropic Claude)",
+          "Self-Hosted Commercial Models (Mistral, Llama via Replicate)",
+          "Cloud-Only Vector DBs (Pinecone, Weaviate Cloud)"
+        ]
+      },
+      "questions": [
+        "Por que local AI em vez de OpenAI?",
+        "Como funciona llama.cpp?",
+        "Como gerenciar VRAM para inference?",
+        "Quando usar cloud vs local?",
+        "Como garantir data privacy em AI?"
+      ],
+      "keywords": [
+        "local-first",
+        "llama.cpp",
+        "FAISS",
+        "local inference",
+        "hybrid cloud",
+        "data privacy",
+        "cost optimization",
+        "PHANTOM",
+        "GGUF"
+      ],
+      "concepts": [
+        "Local-First AI",
+        "Hybrid Cloud Strategy",
+        "VRAM Management",
+        "Model Quantization",
+        "Vendor Independence",
+        "Data Sovereignty"
+      ],
+      "relations": {
+        "supersedes": [],
+        "related": [
+          "ADR-0001",
+          "ADR-0006"
+        ],
+        "enables": [
+          "ADR-0008"
+        ]
+      },
+      "governance": {
+        "classification": "major",
+        "compliance": [
+          "AI",
+          "DATA",
+          "COST",
+          "PRIVACY"
+        ]
+      },
+      "metadata": {
+        "date": "2026-01-11",
+        "version": 1,
+        "hash": "e1afaf5cb713",
+        "embedding_priority": "high"
       }
     },
     {
@@ -433,10 +799,120 @@
         "hash": "91766e2872a3",
         "embedding_priority": "high"
       }
+    },
+    {
+      "id": "ADR-0008",
+      "type": "architecture_decision",
+      "title": "GCP Credit Management & Programmatic Validation Strategy (CEREBRO)",
+      "status": "accepted",
+      "summary": "[ADR-0008] GCP Credit Management & Programmatic Validation Strategy (CEREBRO): Implement **CerebroCreditValidator** with BigQuery audit integration.\n\n### Architecture\n\n```python\n#...",
+      "scope": {
+        "projects": [
+          "CEREBRO",
+          "NEUTRON"
+        ],
+        "layers": [
+          "ml",
+          "infrastructure"
+        ]
+      },
+      "knowledge": {
+        "what": "Implement **CerebroCreditValidator** with BigQuery audit integration.\n\n### Architecture\n\n```python\n# src/phantom/modules/credit_burner/audit.py\nclass CerebroCreditValidator:\n    \"\"\"Validates GCP credits before expensive operations.\"\"\"\n\n    def __init__(self, project_id: str):\n        self.bq_client = bigquery.Client(project=project_id)\n\n    def check_credits_available(\n        self,\n        required_credits: float,\n        threshold: float = 10.0  # $10 minimum buffer\n    ) -> bool:\n        \"\"\"\n        Query BigQuery billing export to check remaining credits.\n\n        Returns:\n            True if (remaining_credits >= required_credits + threshold)\n            False otherwise\n        \"\"\"\n        query = \"\"\"\n        SELECT\n          SUM(cost) as total_spent,\n          SUM(IF(credit_type = 'PROMOTION', ABS(credit_amount), 0)) as total_credits\n        FROM `{project}.billing_export.gcp_billing_export_v1`\n        WHERE\n          DATE(usage_start_time) >= '{start_date}'\n          AND DATE(usage_end_time) <= '{end_date}'\n        \"\"\"\n\n        df = self.bq_client.query(query).to_dataframe()\n        total_spent = df['total_spent'].iloc[0] or 0\n        total_credits = df['total_credits'].iloc[0] or 0\n        remaining = total_credits - total_spent\n\n        if remaining < (required_credits + threshold):\n            log.error(\n                f\"Insufficient credits: {remaining:.2f} available, \"\n                f\"{required_credits:.2f} required (+ ${threshold} buffer)\"\n            )\n            return False\n\n        log.info(f\"Credits OK: ${remaining:.2f} available\")\n        return True\n```\n\n### Integration with NEUTRON\n\n```python\n# neutron/cost_tracker.py (NEUTRON integration)\nfrom phantom.modules.credit_burner.audit import CerebroCreditValidator\n\nclass CostTracker:\n    def __init__(self):\n        self.validator = CerebroCreditValidator(project_id=\"my-gcp-project\")\n\n    def validate_before_run(self, estimated_cost: float):\n        \"\"\"Pre-flight check before ML pipeline.\"\"\"\n        if not self.validator.check_credits_available(estimated_cost):\n            raise InsufficientCreditsError(\n                f\"Cannot start run: ${estimated_cost:.2f} required, \"\n                \"insufficient credits\"\n            )\n```\n\n### Credit Burning Strategies\n\n**Module**: `src/phantom/modules/credit_burner/`\n\n#### 1. Batch Burn (High Throughput)\n```python\n# batch_burn.py\ndef batch_burn_credits(target_amount: float):\n    \"\"\"\n    Burn GCP credits via Vertex AI Discovery Engine.\n    \n    Strategy: Submit high-volume queries to maximize credit usage.\n    Use case: $9k credits, 5 days until expiry → burn $1.8k/day\n    \"\"\"\n    queries_per_hour = calculate_query_rate(target_amount)\n    \n    for _ in range(queries_per_hour):\n        # Vertex AI grounded search: $0.50 per 1k queries\n        discovery_engine.search(query=generate_query(), corpus_id=\"...\")\n```\n\n#### 2. Load Test (Quota Validation)\n```python\n# loadtest.py\ndef loadtest_discovery_engine(duration_hours: int):\n    \"\"\"\n    Stress-test Discovery Engine to validate quotas.\n    \n    Validates: Can we sustain 10k queries/hour?\n    Monitors: Error rates, latency, cost per query\n    \"\"\"\n    start_time = time.time()\n    while time.time() - start_time < duration_hours * 3600:\n        response = discovery_engine.search(...)\n        metrics.record(latency=response.latency, cost=response.cost)\n```\n\n#### 3. ROI Optimization\n```python\n# roi_optimizer.py\ndef optimize_roi(budget: float, experiments: List[Experiment]):\n    \"\"\"\n    Maximize learning per dollar.\n    \n    Algorithm:\n    1. Estimate cost per experiment\n    2. Estimate learning value (subjective score)\n    3. Sort by value/cost ratio\n    4. Run experiments until budget exhausted\n    \"\"\"\n    experiments.sort(key=lambda e: e.value / e.cost, reverse=True)\n    \n    spent = 0\n    for exp in experiments:\n        if spent + exp.cost <= budget:\n            run_experiment(exp)\n            spent += exp.cost\n```",
+        "why": "CEREBRO is a GenAI credit validation & knowledge extraction engine optimized for **consuming GCP Trial Credits** ($300-10k) efficiently.\n\n### Problem: Credits Expiring Unused\n\n**Scenario**: Received $10k GCP credits (90-day expiration)\n\n**Challenge**:\n- Credits expire if not used within 90 days\n- No programmatic way to check remaining balance before ML run\n- Manual tracking leads to errors: \"Did we already spend $8k or $9k?\"\n\n**Real Incident**:\n```\nDay 85: $2k credits remaining\nEngineer: Starts $3k ML experiment (7-day training)\nDay 90: Credits expire\nDay 92: ML run fails mid-training (credits depleted)\nResult: $2k wasted on incomplete run, zero learning\n```\n\n### Requirements\n\n1. **Pre-Flight Validation**: Check credits available *before* starting expensive run\n2. **Real-Time Tracking**: Know current spend at any moment\n3. **Integration**: Plug into NEUTRON ML pipelines\n4. **ROI Focus**: Maximize learning per dollar spent",
+        "implications": {
+          "positive": [
+            "Programmatic credit validation before ML runs (prevent waste)",
+            "Real-time cost tracking via BigQuery",
+            "ROI optimization: maximize learning per dollar",
+            "Integration with NEUTRON (CerebroCreditValidator)"
+          ],
+          "negative": [
+            "BigQuery audit costs (~$5/TB, minimal for our scale)",
+            "Pre-flight validation adds 2-5s latency to workflows"
+          ]
+        },
+        "alternatives_rejected": [
+          "Manual credit tracking (spreadsheets)",
+          "Cloud billing alerts (GCP native)"
+        ]
+      },
+      "questions": [
+        "Como validar GCP credits programaticamente?",
+        "Como prevenir wasted ML runs?",
+        "Como rastrear custos em tempo real?"
+      ],
+      "keywords": [
+        "GCP credits",
+        "cost tracking",
+        "FinOps",
+        "BigQuery",
+        "credit validation",
+        "CEREBRO"
+      ],
+      "concepts": [
+        "Programmatic Credit Validation",
+        "FinOps",
+        "Cost Optimization",
+        "Pre-Flight Checks"
+      ],
+      "relations": {
+        "supersedes": [],
+        "related": [
+          "ADR-0007",
+          "ADR-0009"
+        ],
+        "enables": []
+      },
+      "governance": {
+        "classification": "major",
+        "compliance": [
+          "COST",
+          "FINOPS",
+          "CLOUD"
+        ]
+      },
+      "metadata": {
+        "date": "2026-01-11",
+        "version": 1,
+        "hash": "d4fa43d11383",
+        "embedding_priority": "high"
+      }
     }
   ],
   "graph": {
     "nodes": [
+      {
+        "id": "ADR-0009",
+        "type": "adr",
+        "label": "Adaptive ML Pipeline Orchestration (Temporal + Ray + MLflow)",
+        "status": "accepted",
+        "projects": [
+          "NEUTRON",
+          "CEREBRO"
+        ]
+      },
+      {
+        "id": "ADR-0006",
+        "type": "adr",
+        "label": "Event-Driven Architecture via NATS JetStream (SPECTRE)",
+        "status": "accepted",
+        "projects": [
+          "SPECTRE",
+          "PHANTOM",
+          "CEREBRO",
+          "NEUTRON",
+          "GLOBAL"
+        ]
+      },
+      {
+        "id": "ADR-0010",
+        "type": "adr",
+        "label": "PHANTOM Production Readiness Assessment & Roadmap",
+        "status": "accepted",
+        "projects": [
+          "PHANTOM"
+        ]
+      },
       {
         "id": "ADR-0002",
         "type": "adr",
@@ -445,6 +921,16 @@
         "projects": [
           "CEREBRO",
           "GLOBAL"
+        ]
+      },
+      {
+        "id": "ADR-0007",
+        "type": "adr",
+        "label": "Local-First AI Strategy com Hybrid Cloud Fallback (PHANTOM)",
+        "status": "accepted",
+        "projects": [
+          "PHANTOM",
+          "CEREBRO"
         ]
       },
       {
@@ -491,19 +977,29 @@
         ]
       },
       {
+        "id": "ADR-0008",
+        "type": "adr",
+        "label": "GCP Credit Management & Programmatic Validation Strategy (CEREBRO)",
+        "status": "accepted",
+        "projects": [
+          "CEREBRO",
+          "NEUTRON"
+        ]
+      },
+      {
         "id": "PROJECT:GLOBAL",
         "type": "project",
         "label": "GLOBAL"
       },
       {
-        "id": "PROJECT:CEREBRO",
-        "type": "project",
-        "label": "CEREBRO"
-      },
-      {
         "id": "PROJECT:NEUTRON",
         "type": "project",
         "label": "NEUTRON"
+      },
+      {
+        "id": "PROJECT:CEREBRO",
+        "type": "project",
+        "label": "CEREBRO"
       },
       {
         "id": "PROJECT:PHANTOM",
@@ -518,6 +1014,111 @@
     ],
     "edges": [
       {
+        "source": "ADR-0009",
+        "target": "ADR-0005",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0009",
+        "target": "ADR-0006",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0009",
+        "target": "ADR-0008",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0009",
+        "target": "PROJECT:NEUTRON",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0009",
+        "target": "PROJECT:CEREBRO",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0006",
+        "target": "ADR-0001",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0006",
+        "target": "ADR-0005",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0006",
+        "target": "ADR-0007",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0006",
+        "target": "ADR-0008",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0006",
+        "target": "ADR-0009",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0006",
+        "target": "PROJECT:SPECTRE",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0006",
+        "target": "PROJECT:PHANTOM",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0006",
+        "target": "PROJECT:CEREBRO",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0006",
+        "target": "PROJECT:NEUTRON",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0006",
+        "target": "PROJECT:GLOBAL",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0010",
+        "target": "ADR-0005",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0010",
+        "target": "ADR-0009",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0010",
+        "target": "PHANTOM v2.0 Production Deployment",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0010",
+        "target": "Multi-tenant PHANTOM instances",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0010",
+        "target": "Enterprise PHANTOM adoption",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0010",
+        "target": "PROJECT:PHANTOM",
+        "type": "belongs_to"
+      },
+      {
         "source": "ADR-0002",
         "target": "ADR-0001",
         "type": "related_to"
@@ -545,6 +1146,31 @@
       {
         "source": "ADR-0002",
         "target": "PROJECT:GLOBAL",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0007",
+        "target": "ADR-0001",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0007",
+        "target": "ADR-0006",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0007",
+        "target": "ADR-0008",
+        "type": "enables"
+      },
+      {
+        "source": "ADR-0007",
+        "target": "PROJECT:PHANTOM",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0007",
+        "target": "PROJECT:CEREBRO",
         "type": "belongs_to"
       },
       {
@@ -670,11 +1296,76 @@
       {
         "source": "ADR-0003",
         "target": "PROJECT:GLOBAL",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0008",
+        "target": "ADR-0007",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0008",
+        "target": "ADR-0009",
+        "type": "related_to"
+      },
+      {
+        "source": "ADR-0008",
+        "target": "PROJECT:CEREBRO",
+        "type": "belongs_to"
+      },
+      {
+        "source": "ADR-0008",
+        "target": "PROJECT:NEUTRON",
         "type": "belongs_to"
       }
     ]
   },
   "concepts_index": {
+    "Durable Execution": [
+      "ADR-0009"
+    ],
+    "Adaptive Hyperparameter Optimization": [
+      "ADR-0009"
+    ],
+    "Stateful Actors": [
+      "ADR-0009"
+    ],
+    "Experiment Tracking": [
+      "ADR-0009"
+    ],
+    "Event-Driven Architecture": [
+      "ADR-0006"
+    ],
+    "Loose Coupling": [
+      "ADR-0006"
+    ],
+    "Fault Isolation": [
+      "ADR-0006"
+    ],
+    "Eventual Consistency": [
+      "ADR-0006"
+    ],
+    "Message Broker": [
+      "ADR-0006"
+    ],
+    "Queue Groups": [
+      "ADR-0006"
+    ],
+    "Event Sourcing": [
+      "ADR-0006"
+    ],
+    "Production Readiness Assessment": [
+      "ADR-0010"
+    ],
+    "Incremental Hardening": [
+      "ADR-0010"
+    ],
+    "SLO-Driven Development": [
+      "ADR-0010"
+    ],
+    "Security-First Architecture": [
+      "ADR-0010"
+    ],
     "Retrieval Augmented Generation": [
       "ADR-0002"
     ],
@@ -686,6 +1377,24 @@
     ],
     "Proactive Learning": [
       "ADR-0002"
+    ],
+    "Local-First AI": [
+      "ADR-0007"
+    ],
+    "Hybrid Cloud Strategy": [
+      "ADR-0007"
+    ],
+    "VRAM Management": [
+      "ADR-0007"
+    ],
+    "Model Quantization": [
+      "ADR-0007"
+    ],
+    "Vendor Independence": [
+      "ADR-0007"
+    ],
+    "Data Sovereignty": [
+      "ADR-0007"
     ],
     "Machine Learning Pipeline": [
       "ADR-0004"
@@ -734,13 +1443,42 @@
     ],
     "Textual Forensics": [
       "ADR-0003"
+    ],
+    "Programmatic Credit Validation": [
+      "ADR-0008"
+    ],
+    "FinOps": [
+      "ADR-0008"
+    ],
+    "Cost Optimization": [
+      "ADR-0008"
+    ],
+    "Pre-Flight Checks": [
+      "ADR-0008"
     ]
   },
   "questions_index": {
+    "Por que Temporal em vez de Airflow?": "ADR-0009",
+    "Como funciona adaptive hyperparameter optimization?": "ADR-0009",
+    "Como Ray gerencia GPU resources?": "ADR-0009",
+    "Por que event-driven em vez de REST APIs?": "ADR-0006",
+    "Por que NATS em vez de Kafka ou RabbitMQ?": "ADR-0006",
+    "Como os serviços se comunicam na stack?": "ADR-0006",
+    "Como garantir fault tolerance com NATS?": "ADR-0006",
+    "Como fazer observability de eventos?": "ADR-0006",
+    "O PHANTOM está pronto para produção?": "ADR-0010",
+    "Quais são os gaps críticos para deploy?": "ADR-0010",
+    "Qual o roadmap para production readiness?": "ADR-0010",
+    "Quais SLOs devemos atingir?": "ADR-0010",
     "Como os agentes acessam knowledge contextual?": "ADR-0002",
     "Qual a arquitetura do sistema de RAG?": "ADR-0002",
     "Como garantimos accuracy no retrieval?": "ADR-0002",
     "Como CEREBRO se integra com outros sistemas?": "ADR-0002",
+    "Por que local AI em vez de OpenAI?": "ADR-0007",
+    "Como funciona llama.cpp?": "ADR-0007",
+    "Como gerenciar VRAM para inference?": "ADR-0007",
+    "Quando usar cloud vs local?": "ADR-0007",
+    "Como garantir data privacy em AI?": "ADR-0007",
     "Como processamos dados em escala?": "ADR-0004",
     "Como classificamos documentos automaticamente?": "ADR-0004",
     "Como orquestramos workflows de ML?": "ADR-0004",
@@ -756,6 +1494,9 @@
     "Como analisamos sentimento em textos?": "ADR-0003",
     "Como extraímos padrões de dados massivos?": "ADR-0003",
     "Como auditamos qualidade de agents?": "ADR-0003",
-    "Como SPECTRE se integra com a stack?": "ADR-0003"
+    "Como SPECTRE se integra com a stack?": "ADR-0003",
+    "Como validar GCP credits programaticamente?": "ADR-0008",
+    "Como prevenir wasted ML runs?": "ADR-0008",
+    "Como rastrear custos em tempo real?": "ADR-0008"
   }
 }

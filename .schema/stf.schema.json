@@ -1,0 +1,203 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://neutron.protocol/stf/v1/schema",
+  "title": "Supreme Technical Directive (STF) Schema",
+  "description": "Validation schema for STF protocol directives",
+  "type": "object",
+  "required": [
+    "stf_version",
+    "protocol",
+    "mode",
+    "priority",
+    "core_directives",
+    "behavioral_constraints",
+    "error_handling"
+  ],
+  "properties": {
+    "stf_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of STF protocol"
+    },
+    "protocol": {
+      "type": "string",
+      "enum": ["NEUTRON", "SPECTRE", "PHANTOM", "CEREBRO"],
+      "description": "Protocol namespace"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["STRICT_COMPLIANCE", "GUIDED", "PERMISSIVE"],
+      "description": "Enforcement mode"
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["ABSOLUTE", "HIGH", "NORMAL"],
+      "description": "Priority level over other prompts"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date of last update"
+    },
+    "core_directives": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/directive"
+      }
+    },
+    "behavioral_constraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/constraint"
+      }
+    },
+    "error_prevention": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/pattern"
+      }
+    },
+    "error_handling": {
+      "type": "object",
+      "required": ["error_codes", "logging_format", "fallback"],
+      "properties": {
+        "error_codes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "description"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "pattern": "^STF-[0-9]{3}$"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "logging_format": {
+          "type": "string",
+          "enum": ["structured-json", "plain-text", "syslog"]
+        },
+        "fallback": {
+          "type": "object",
+          "required": ["policy"],
+          "properties": {
+            "policy": {
+              "type": "string"
+            },
+            "no_retry": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "execution_environment": {
+      "type": "object",
+      "properties": {
+        "nix_shell_definition": {
+          "type": "string"
+        },
+        "build_inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "forbidden_patterns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "directive": {
+      "type": "object",
+      "required": ["id", "enforcement", "title", "rule"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^STF-D[0-9]{3}$"
+        },
+        "enforcement": {
+          "type": "string",
+          "enum": ["MANDATORY", "RECOMMENDED", "OPTIONAL"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "rule": {
+          "type": "string",
+          "minLength": 10
+        },
+        "action": {
+          "type": "string"
+        },
+        "checklist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "required": ["id", "type", "title"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^STF-C[0-9]{3}$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["HARD_STOP", "OUTPUT_VALIDATION", "SCOPE_ADHERENCE", "FEATURE_INTEGRATION"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "rule": {
+          "type": "string"
+        },
+        "forbidden": {
+          "type": "string"
+        }
+      }
+    },
+    "pattern": {
+      "type": "object",
+      "required": ["id", "name", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^STF-E[0-9]{3}$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "action": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

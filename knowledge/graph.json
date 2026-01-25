@@ -1,6 +1,38 @@
 {
   "nodes": [
     {
+      "id": "ADR-0009",
+      "type": "adr",
+      "label": "Adaptive ML Pipeline Orchestration (Temporal + Ray + MLflow)",
+      "status": "accepted",
+      "projects": [
+        "NEUTRON",
+        "CEREBRO"
+      ]
+    },
+    {
+      "id": "ADR-0006",
+      "type": "adr",
+      "label": "Event-Driven Architecture via NATS JetStream (SPECTRE)",
+      "status": "accepted",
+      "projects": [
+        "SPECTRE",
+        "PHANTOM",
+        "CEREBRO",
+        "NEUTRON",
+        "GLOBAL"
+      ]
+    },
+    {
+      "id": "ADR-0010",
+      "type": "adr",
+      "label": "PHANTOM Production Readiness Assessment & Roadmap",
+      "status": "accepted",
+      "projects": [
+        "PHANTOM"
+      ]
+    },
+    {
       "id": "ADR-0002",
       "type": "adr",
       "label": "CEREBRO como Camada Central de Knowledge Management",
@@ -8,6 +40,16 @@
       "projects": [
         "CEREBRO",
         "GLOBAL"
+      ]
+    },
+    {
+      "id": "ADR-0007",
+      "type": "adr",
+      "label": "Local-First AI Strategy com Hybrid Cloud Fallback (PHANTOM)",
+      "status": "accepted",
+      "projects": [
+        "PHANTOM",
+        "CEREBRO"
       ]
     },
     {
@@ -54,9 +96,14 @@
       ]
     },
     {
-      "id": "PROJECT:CEREBRO",
-      "type": "project",
-      "label": "CEREBRO"
+      "id": "ADR-0008",
+      "type": "adr",
+      "label": "GCP Credit Management & Programmatic Validation Strategy (CEREBRO)",
+      "status": "accepted",
+      "projects": [
+        "CEREBRO",
+        "NEUTRON"
+      ]
     },
     {
       "id": "PROJECT:GLOBAL",
@@ -64,14 +111,19 @@
       "label": "GLOBAL"
     },
     {
-      "id": "PROJECT:PHANTOM",
-      "type": "project",
-      "label": "PHANTOM"
-    },
-    {
       "id": "PROJECT:NEUTRON",
       "type": "project",
       "label": "NEUTRON"
+    },
+    {
+      "id": "PROJECT:CEREBRO",
+      "type": "project",
+      "label": "CEREBRO"
+    },
+    {
+      "id": "PROJECT:PHANTOM",
+      "type": "project",
+      "label": "PHANTOM"
     },
     {
       "id": "PROJECT:SPECTRE",
@@ -81,6 +133,111 @@
   ],
   "edges": [
     {
+      "source": "ADR-0009",
+      "target": "ADR-0005",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0009",
+      "target": "ADR-0006",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0009",
+      "target": "ADR-0008",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0009",
+      "target": "PROJECT:NEUTRON",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0009",
+      "target": "PROJECT:CEREBRO",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0006",
+      "target": "ADR-0001",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0006",
+      "target": "ADR-0005",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0006",
+      "target": "ADR-0007",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0006",
+      "target": "ADR-0008",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0006",
+      "target": "ADR-0009",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0006",
+      "target": "PROJECT:SPECTRE",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0006",
+      "target": "PROJECT:PHANTOM",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0006",
+      "target": "PROJECT:CEREBRO",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0006",
+      "target": "PROJECT:NEUTRON",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0006",
+      "target": "PROJECT:GLOBAL",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0010",
+      "target": "ADR-0005",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0010",
+      "target": "ADR-0009",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0010",
+      "target": "PHANTOM v2.0 Production Deployment",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0010",
+      "target": "Multi-tenant PHANTOM instances",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0010",
+      "target": "Enterprise PHANTOM adoption",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0010",
+      "target": "PROJECT:PHANTOM",
+      "type": "belongs_to"
+    },
+    {
       "source": "ADR-0002",
       "target": "ADR-0001",
       "type": "related_to"
@@ -108,6 +265,31 @@
     {
       "source": "ADR-0002",
       "target": "PROJECT:GLOBAL",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0007",
+      "target": "ADR-0001",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0007",
+      "target": "ADR-0006",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0007",
+      "target": "ADR-0008",
+      "type": "enables"
+    },
+    {
+      "source": "ADR-0007",
+      "target": "PROJECT:PHANTOM",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0007",
+      "target": "PROJECT:CEREBRO",
       "type": "belongs_to"
     },
     {
@@ -233,6 +415,26 @@
     {
       "source": "ADR-0003",
       "target": "PROJECT:GLOBAL",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0008",
+      "target": "ADR-0007",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0008",
+      "target": "ADR-0009",
+      "type": "related_to"
+    },
+    {
+      "source": "ADR-0008",
+      "target": "PROJECT:CEREBRO",
+      "type": "belongs_to"
+    },
+    {
+      "source": "ADR-0008",
+      "target": "PROJECT:NEUTRON",
       "type": "belongs_to"
     }
   ]
