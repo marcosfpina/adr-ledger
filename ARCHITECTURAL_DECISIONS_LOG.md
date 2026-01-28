@@ -1,12 +1,12 @@
 # Architectural Decisions Log
 
-**Document Title:** Architectural Decisions Log  
-**Last Updated:** 2026-01-25  
+**Document Title:** Architectural Decisions Log
+**Last Updated:** 2026-01-26
 **Maintainer:** KernelCore (System Architect)
 
 ---
 
-## AD-001: Supreme Technical Directive (STF) Protocol
+## AD-001: Supreme Technical Form (STF) Protocol
 
 1.  **Decision ID:** AD-001
 2.  **Date:** 2026-01-25 (Blockchain Record: Pending Future Implementation)
@@ -27,8 +27,8 @@
     - **Positive:** predictable responses, reduced error rate, strict environment compliance.
     - **Negative:** Agents may refuse vague tasks, requiring more explicit user prompting.
 9.  **Alternatives Considered:**
-    - *Provider System Prompts (CLAUDE.md):* Rejected due to lack of portability and weak enforcement.
-    - *Runtime Wrappers:* Rejected as they are reactive (post-generation) rather than preventive.
+    - _Provider System Prompts (CLAUDE.md):_ Rejected due to lack of portability and weak enforcement.
+    - _Runtime Wrappers:_ Rejected as they are reactive (post-generation) rather than preventive.
 10. **Tags:** `governance`, `ai-safety`, `nix`, `protocol`
 
 11. **Proposer:** KernelCore
@@ -38,7 +38,7 @@
 15. **Related Documents:** `adr/proposed/ADR-0012.md`
 16. **Metrics:** N/A (Protocol definition phase)
 17. **Risks:** Agents might become too rigid ("refusal to answer") if constraints are overly aggressive.
-    - *Mitigation:* Calibrated confidence markers and explicit override mechanisms.
+    - _Mitigation:_ Calibrated confidence markers and explicit override mechanisms.
 18. **Trade-offs:** Flexibility vs. Reliability. We choose Reliability.
 19. **Implementation Notes:** Requires parser implementation in the Agent Hub to inject STF context dynamically.
 20. **Diagrams:** N/A
@@ -67,8 +67,8 @@
     - **Positive:** High trust in automated actions, preventing system corruption.
     - **Negative:** Operational overhead of running additional services (Python API, DBs).
 9.  **Alternatives Considered:**
-    - *Client-side filtering:* Rejected because it lacks centralized logging and learning capabilities.
-    - *Blind Trust:* Rejected as unsafe for production systems.
+    - _Client-side filtering:_ Rejected because it lacks centralized logging and learning capabilities.
+    - _Blind Trust:_ Rejected as unsafe for production systems.
 10. **Tags:** `observability`, `python`, `nix`, `fastapi`, `mlflow`
 
 11. **Proposer:** KernelCore
@@ -81,7 +81,7 @@
     - Rate of human intervention (aiming for < 10% over time).
 17. **Risks:**
     - **Bottleneck:** The Ranking API could become a single point of failure.
-    - *Mitigation:* Fail-safe mode (default to "Request Approval" if API down).
+    - _Mitigation:_ Fail-safe mode (default to "Request Approval" if API down).
 18. **Trade-offs:** Latency (extra API hop) vs. Safety.
 19. **Implementation Notes:** Implemented as a Nix Flake project. Uses `FastAPI` for the ranking endpoint and `TimescaleDB` for persistence.
 20. **Diagrams:** N/A
@@ -95,7 +95,7 @@
 3.  **Status:** Accepted
 4.  **Title:** Git-based Architectural Decision Records (ADR)
 5.  **Context:**
-    Architectural knowledge is often lost in chat logs or proprietary tools (Notion/Confluence). AI agents need a structured, parseable, and "sovereign" source of truth to understand the *why* behind system designs.
+    Architectural knowledge is often lost in chat logs or proprietary tools (Notion/Confluence). AI agents need a structured, parseable, and "sovereign" source of truth to understand the _why_ behind system designs.
 6.  **Decision:**
     Use a Git-based ADR system (`adr-ledger`) with a strict JSON schema.
     - **Tooling:** Bash scripts (`scripts/adr`) for CRUD operations.
@@ -109,8 +109,8 @@
     - **Positive:** Knowledge base is portable, offline-accessible, and machine-readable.
     - **Negative:** Higher friction to write docs compared to a Wiki.
 9.  **Alternatives Considered:**
-    - *Wikis:* Rejected due to lack of versioning and machine-readability.
-    - *Database:* Rejected due to lack of human-readability.
+    - _Wikis:_ Rejected due to lack of versioning and machine-readability.
+    - _Database:_ Rejected due to lack of human-readability.
 10. **Tags:** `documentation`, `git`, `knowledge-management`
 
 11. **Proposer:** KernelCore
@@ -120,7 +120,27 @@
 15. **Related Documents:** `ADR-0001`
 16. **Metrics:** N/A
 17. **Risks:** documentation drift (code changes, docs don't).
-    - *Mitigation:* `adr-compliance` checks in CI pipeline.
+    - _Mitigation:_ `adr-compliance` checks in CI pipeline.
 18. **Trade-offs:** Write-friction vs. Read-reliability.
 19. **Implementation Notes:** Fixed syntax errors in `scripts/adr` to support nullglob for robust file handling.
 20. **Diagrams:** N/A
+
+---
+
+## AD-004: Dev Environment Integration & CEREBRO Full Implementation
+
+1.  **Decision ID:** AD-004
+2.  **Date:** 2026-01-26
+3.  **Status:** Accepted
+4.  **Title:** Integrated Dev Deployment & CEREBRO (~6k LOC)
+5.  **Context:**
+    Successful deployment and integration of core ecosystem components, highlighted by the full implementation of the CEREBRO Intelligence System.
+6.  **Decision:**
+    Formal acknowledgement of the technical milestone achieving operational status for CEREBRO (Intelligence Core, Project Scanner, React Dashboard), Phantom, SecureLLM-Bridge, Neutron, and Sentinel in `dev`.
+7.  **Rationale:**
+    - Validates the transition of the project to a professional career goal.
+    - Demonstrates full-stack capability (Python/FastAPI + React/Tailwind) and advanced AI (RAG/Hybrid Search).
+8.  **Consequences:**
+    - **Positive:** Robust integrated platform with semantic search and intelligence gathering capabilities.
+9.  **Tags:** `milestone`, `deployment`, `cerebro`, `rag`, `full-stack`
+10. **Related Documents:** `ADR-0013`

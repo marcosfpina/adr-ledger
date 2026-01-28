@@ -41,7 +41,7 @@ get_next_id() {
         if [[ -f "$file" ]]; then
             # Extract number safely
             local filename=$(basename "$file")
-            local id_str=$(echo "$filename" | sed -n 's/^ADR-\([0-9]\+\)\.md$/\1/p')
+            local id_str=$(echo "$filename" | sed -n 's/^ADR-\\([0-9]\\+\\)\.md$/\\1/p')
             
             # Default to 0 if extraction failed
             local id=$((10#${id_str:-0}))
@@ -68,7 +68,7 @@ get_adr_path() {
 
 validate_project() {
     local project="$1"
-    local valid_projects="SPECTRE PHANTOM CEREBRO NEUTRON GLOBAL"
+    local valid_projects="SPECTRE PHANTOM CEREBRO NEUTRON GLOBAL IntelSense"
     if [[ " $valid_projects " =~ " $project " ]]; then
         return 0
     fi
@@ -83,6 +83,9 @@ cmd_new() {
     local title=""
     local projects=()
     local classification="minor"
+    local tags=()
+    local decision_type=""
+    local custom_path=""
     local interactive=true
     
     while [[ $# -gt 0 ]]; do
@@ -90,6 +93,9 @@ cmd_new() {
             -t|--title) title="$2"; shift 2 ;;
             -p|--project) projects+=("$2"); shift 2 ;;
             -c|--classification) classification="$2"; shift 2 ;;
+            --tags) IFS=',' read -r -a tags <<< "$2"; shift 2 ;;
+            --decision-type) decision_type="$2"; shift 2 ;;
+            --path) custom_path="$2"; shift 2 ;;
             --no-interactive) interactive=false; shift ;;
             *) shift ;;
         esac
@@ -105,7 +111,7 @@ cmd_new() {
         read -p "Título da decisão: " title
         
         echo ""
-        echo "Projetos disponíveis: SPECTRE, PHANTOM, CEREBRO, NEUTRON, GLOBAL"
+        echo "Projetos disponíveis: SPECTRE, PHANTOM, CEREBRO, NEUTRON, GLOBAL, IntelSense"
         read -p "Projetos (separados por espaço): " -a projects
         
         echo ""
@@ -131,91 +137,405 @@ cmd_new() {
     local date=$(date +%Y-%m-%d)
     local timestamp=$(date -Iseconds)
     local projects_yaml=""
+    local tags_yaml=""
     
-    for p in "${projects[@]}"; do
-        projects_yaml="${projects_yaml}      - ${p}\n"
-    done
+        # Build projects YAML string
     
-    local file_path="${ADR_DIR}/proposed/${id}.md"
+        for p in "${projects[@]}"; do
     
-    cat > "$file_path" << EOF
----
-id: "${id}"
-title: "${title}"
-status: proposed
-date: "${date}"
-
-authors:
-  - name: "Pina"
-    role: "Security Engineer"
-    github: "pina"
-
-reviewers: []
-
-governance:
-  classification: "${classification}"
-  requires_approval_from:
-    - architect
-  compliance_tags: []
-  review_deadline: "$(date -d '+7 days' +%Y-%m-%d)"
-  auto_supersede_after: "1y"
-
-scope:
-  projects:
-$(echo -e "$projects_yaml")  layers:
-    - infrastructure
-  environments:
-    - all
-
-rationale:
-  drivers: []
-  alternatives_considered: []
-  trade_offs: []
-
-consequences:
-  positive: []
-  negative: []
-  risks: []
-
-implementation:
-  effort: "medium"
-  timeline: ""
-  dependencies: []
-  blocked_by: []
-  tasks: []
-
-relations:
-  supersedes: []
-  superseded_by: null
-  related_to: []
-  implements: []
-  enables: []
-
-knowledge_extraction:
-  keywords: []
-  concepts: []
-  questions_answered: []
-  embedding_priority: "normal"
-
-audit:
-  created_at: "${timestamp}"
-  last_modified: "${timestamp}"
-  version: 1
-  changelog:
-    - date: "${timestamp}"
-      author: "Pina"
-      change: "ADR criado"
-      commit_hash: null
----
-
-## Context
-
-<!-- 
-Descreva o contexto e o problema que levou a esta decisão.
-O que está acontecendo? Por que precisamos tomar uma decisão?
--->
-
-[Descreva o contexto aqui]
+            projects_yaml="${projects_yaml}      - ${p}\n"
+    
+        done
+    
+    
+    
+        # Add default security tags if IntelSense is involved
+    
+        if [[ " ${projects[*]} " =~ " IntelSense " ]]; then
+    
+            if [[ ! " ${tags[*]} " =~ " SECURITY " ]]; then
+    
+                 tags+=("SECURITY")
+    
+            fi
+    
+        fi
+    
+        
+    
+        # Build tags YAML string
+    
+        for t in "${tags[@]}"; do
+    
+            tags_yaml="${tags_yaml}    - ${t}\n"
+    
+        done
+    
+        
+    
+        # Determine file path
+    
+        local file_path="${ADR_DIR}/proposed/${id}.md"
+    
+        
+    
+        # Handle custom path context if provided (stored in Context section for now)
+    
+        local context_extra=""
+    
+        if [[ -n "$custom_path" ]]; then
+    
+            context_extra="\n**Target Path:** \`$custom_path\`\n"
+    
+        fi
+    
+    
+    
+        # Handle decision type in Rationale/Context
+    
+        local type_context=""
+    
+        if [[ -n "$decision_type" ]]; then
+    
+            type_context="\n**Decision Type:** ${decision_type}\n"
+    
+        fi
+    
+        
+    
+            # Build context string with expanded newlines
+    
+        
+    
+            local full_context_extra=$(echo -e "${context_extra}${type_context}")
+    
+        
+    
+        
+    
+        
+    
+            cat > "$file_path" << EOF
+    
+        
+    
+        ---
+    
+        
+    
+        id: "${id}"
+    
+        
+    
+        title: "${title}"
+    
+        
+    
+        status: proposed
+    
+        
+    
+        date: "${date}"
+    
+        
+    
+        
+    
+        
+    
+        authors:
+    
+        
+    
+          - name: "Pina"
+    
+        
+    
+            role: "Security Engineer"
+    
+        
+    
+            github: "pina"
+    
+        
+    
+        
+    
+        
+    
+        reviewers: []
+    
+        
+    
+        
+    
+        
+    
+        governance:
+    
+        
+    
+          classification: "${classification}"
+    
+        
+    
+          requires_approval_from:
+    
+        
+    
+            - architect
+    
+        
+    
+            - security_lead
+    
+        
+    
+          compliance_tags:
+    
+        
+    
+        $(echo -e "$tags_yaml")
+    
+        
+    
+          review_deadline: "$(date -d '+7 days' +%Y-%m-%d)"
+    
+        
+    
+          auto_supersede_after: "1y"
+    
+        
+    
+        
+    
+        
+    
+        scope:
+    
+        
+    
+          projects:
+    
+        
+    
+        $(echo -e "$projects_yaml")
+    
+        
+    
+          layers:
+    
+        
+    
+            - security
+    
+        
+    
+          environments:
+    
+        
+    
+            - all
+    
+        
+    
+        
+    
+        
+    
+        rationale:
+    
+        
+    
+          drivers: []
+    
+        
+    
+          alternatives_considered: []
+    
+        
+    
+          trade_offs: []
+    
+        
+    
+        
+    
+        
+    
+        consequences:
+    
+        
+    
+          positive: []
+    
+        
+    
+          negative: []
+    
+        
+    
+          risks: []
+    
+        
+    
+        
+    
+        
+    
+        implementation:
+    
+        
+    
+          effort: "medium"
+    
+        
+    
+          timeline: ""
+    
+        
+    
+          dependencies: []
+    
+        
+    
+          blocked_by: []
+    
+        
+    
+          tasks: []
+    
+        
+    
+        
+    
+        
+    
+        relations:
+    
+        
+    
+          supersedes: []
+    
+        
+    
+          superseded_by: null
+    
+        
+    
+          related_to: []
+    
+        
+    
+          implements: []
+    
+        
+    
+          enables: []
+    
+        
+    
+        
+    
+        
+    
+        knowledge_extraction:
+    
+        
+    
+          keywords: []
+    
+        
+    
+          concepts: []
+    
+        
+    
+          questions_answered: []
+    
+        
+    
+          embedding_priority: "normal"
+    
+        
+    
+        
+    
+        
+    
+        audit:
+    
+        
+    
+          created_at: "${timestamp}"
+    
+        
+    
+          last_modified: "${timestamp}"
+    
+        
+    
+          version: 1
+    
+        
+    
+          changelog:
+    
+        
+    
+            - date: "${timestamp}"
+    
+        
+    
+              author: "Pina"
+    
+        
+    
+              change: "ADR criado"
+    
+        
+    
+              commit_hash: null
+    
+        
+    
+        ---
+    
+        
+    
+        
+    
+        
+    
+        ## Context
+    
+        
+    
+        
+    
+        
+    
+        <!-- 
+    
+        
+    
+        Descreva o contexto e o problema que levou a esta decisão.
+    
+        
+    
+        O que está acontecendo? Por que precisamos tomar uma decisão?
+    
+        
+    
+        -->
+    
+        
+    
+        ${full_context_extra}
+    
+        
+    
+        [Descreva o contexto aqui]
 
 ## Decision
 
@@ -309,7 +629,7 @@ cmd_list() {
     echo ""
     
     if [[ "$format" == "table" ]]; then
-        printf "%-10s │ %-8s │ %-45s │ %-10s\n" "ID" "Status" "Title" "Date"
+        printf "% -10s │ % -8s │ % -45s │ % -10s\n" "ID" "Status" "Title" "Date"
         echo "───────────┼──────────┼───────────────────────────────────────────────┼───────────"
     fi
     
@@ -318,15 +638,15 @@ cmd_list() {
             continue
         fi
         
-        for file in "${ADR_DIR}/${status_dir}"/ADR-*.md 2>/dev/null; do
+        for file in "${ADR_DIR}/${status_dir}"/ADR-*.md; do
             if [[ ! -f "$file" ]]; then
                 continue
             fi
             
-            local id=$(grep -oP '^id:\s*"\K[^"]+' "$file" 2>/dev/null || basename "$file" .md)
-            local title=$(grep -oP '^title:\s*"\K[^"]+' "$file" 2>/dev/null || "Unknown")
-            local date=$(grep -oP '^date:\s*"\K[^"]+' "$file" 2>/dev/null || "Unknown")
-            local status=$(grep -oP '^status:\s*\K\w+' "$file" 2>/dev/null || "$status_dir")
+            local id=$(grep -oP '^id:\s*"\K[^"].*?"' "$file" 2>/dev/null || basename "$file" .md)
+            local title=$(grep -oP '^title:\s*"\K[^"].*?"' "$file" 2>/dev/null || "Unknown")
+            local date=$(grep -oP '^date:\s*"\K[^"].*?"' "$file" 2>/dev/null || "Unknown")
+            local status=$(grep -oP '^status:\s*\K\\w+' "$file" 2>/dev/null || "$status_dir")
             
             # Project filter
             if [[ -n "$project_filter" ]]; then
@@ -350,7 +670,7 @@ cmd_list() {
             esac
             
             if [[ "$format" == "table" ]]; then
-                printf "%-10s │ %s %-6s │ %-45s │ %-10s\n" "$id" "$status_icon" "$status" "$title" "$date"
+                printf "% -10s │ %s % -6s │ % -45s │ % -10s\n" "$id" "$status_icon" "$status" "$title" "$date"
             elif [[ "$format" == "json" ]]; then
                 echo "{\"id\":\"$id\",\"status\":\"$status\",\"title\":\"$title\",\"date\":\"$date\"}"
             fi
@@ -402,7 +722,7 @@ cmd_accept() {
     
     # Update last_modified
     local timestamp=$(date -Iseconds)
-    sed -i "s/last_modified:.*/last_modified: \"${timestamp}\"/" "$source"
+    sed -i "s/last_modified:.*/last_modified: \"${timestamp}\"/
     
     # Move file
     mv "$source" "$target"
@@ -419,7 +739,7 @@ cmd_supersede() {
     local new_id="$2"
     
     if [[ -z "$old_id" || -z "$new_id" ]]; then
-        log_error "Uso: adr supersede <OLD_ID> <NEW_ID>"
+        log_error 'Uso: adr supersede <OLD_ID> <NEW_ID>'
         exit 1
     fi
     
@@ -438,7 +758,7 @@ cmd_supersede() {
     
     # Update old ADR
     sed -i 's/^status:.*/status: superseded/' "$old_path"
-    sed -i "s/superseded_by:.*/superseded_by: \"${new_id}\"/" "$old_path"
+    sed -i "s/superseded_by:.*/superseded_by: \"${new_id}\"/
     
     # Move old ADR to superseded folder
     local old_filename=$(basename "$old_path")
@@ -527,9 +847,9 @@ cmd_search() {
     echo ""
     
     grep -r -l -i "$query" "${ADR_DIR}" --include="*.md" 2>/dev/null | while read -r file; do
-        local id=$(grep -oP '^id:\s*"\K[^"]+' "$file" 2>/dev/null || basename "$file" .md)
-        local title=$(grep -oP '^title:\s*"\K[^"]+' "$file" 2>/dev/null || "Unknown")
-        local status=$(grep -oP '^status:\s*\K\w+' "$file" 2>/dev/null || "unknown")
+        local id=$(grep -oP '^id:\s*"\K[^"].*?"' "$file" 2>/dev/null || basename "$file" .md)
+        local title=$(grep -oP '^title:\s*"\K[^"].*?"' "$file" 2>/dev/null || "Unknown")
+        local status=$(grep -oP '^status:\s*\K\\w+' "$file" 2>/dev/null || "unknown")
         
         echo -e "${GREEN}${id}${NC} [${status}] - ${title}"
         
@@ -545,14 +865,15 @@ cmd_graph() {
     # Generate Mermaid graph
     local mermaid="graph TB\n"
     
-    for file in "${ADR_DIR}"/{proposed,accepted}/*.md; do
+    for file in "${ADR_DIR}"/{proposed,accepted}/*.md;
+ do
         if [[ ! -f "$file" ]]; then
             continue
         fi
         
-        local id=$(grep -oP '^id:\s*"\K[^"]+' "$file" 2>/dev/null || continue)
-        local title=$(grep -oP '^title:\s*"\K[^"]+' "$file" 2>/dev/null || "Unknown")
-        local status=$(grep -oP '^status:\s*\K\w+' "$file" 2>/dev/null || "unknown")
+        local id=$(grep -oP '^id:\s*"\K[^"].*?"' "$file" 2>/dev/null || continue)
+        local title=$(grep -oP '^title:\s*"\K[^"].*?"' "$file" 2>/dev/null || "Unknown")
+        local status=$(grep -oP '^status:\s*\K\\w+' "$file" 2>/dev/null || "unknown")
         
         # Truncate title
         title="${title:0:30}"
@@ -568,12 +889,12 @@ cmd_graph() {
         fi
         
         # Parse relations
-        local supersedes=$(grep -oP 'supersedes:\s*\n\s*-\s*"\K[^"]+' "$file" 2>/dev/null || true)
+        local supersedes=$(grep -oP 'supersedes:\s*\n\s*-\s*"\K[^"].*?"' "$file" 2>/dev/null || true)
         for s in $supersedes; do
             mermaid+="    ${id} -->|supersedes| ${s}\n"
         done
         
-        local related=$(grep -oP 'related_to:\s*\n\s*-\s*"\K[^"]+' "$file" 2>/dev/null || true)
+        local related=$(grep -oP 'related_to:\s*\n\s*-\s*"\K[^"].*?"' "$file" 2>/dev/null || true)
         for r in $related; do
             mermaid+="    ${id} -.->|related| ${r}\n"
         done
@@ -593,7 +914,7 @@ cmd_validate() {
     
     log_info "Validando ADRs..."
     
-    for file in "${ADR_DIR}"/{proposed,accepted,superseded,rejected}/*.md 2>/dev/null; do
+        for file in "${ADR_DIR}"/{proposed,accepted,superseded,rejected}/*.md; do
         if [[ ! -f "$file" ]]; then
             continue
         fi
@@ -627,7 +948,7 @@ cmd_validate() {
         fi
         
         # Check for empty sections
-        if grep -q '^\[Descreva' "$file"; then
+        if grep -q '^\\[Descreva' "$file"; then
             log_warn "$id: Contém placeholders não preenchidos"
         fi
         

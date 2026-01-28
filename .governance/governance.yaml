@@ -207,6 +207,20 @@ projects:
       - "requires_rollback_plan"
       - "staging_validation_required"
 
+  IntelSense:
+    description: "Security Operations Tier & Intelligence Gathering (OSINT/SIGINT)"
+    owners: ["pina", "security_lead"]
+    default_classification: "major"
+    required_tags: ["SECURITY", "OSINT"]
+    special_rules:
+      - "requires_security_review"
+      - "sandbox_execution_mandatory"
+      - "threat_model_required"
+    scope_definition:
+      - "spider-nix (OSINT Framework)"
+      - "Threat Intelligence Feeds"
+      - "Vulnerability Scanners"
+
 # =============================================================================
 # AUTOMATION HOOKS
 # =============================================================================

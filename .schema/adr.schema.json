@@ -61,7 +61,7 @@
         "compliance_tags": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "LGPD, SOC2, ISO27001, etc"
+          "description": "LGPD, SOC2, ISO27001, SECURITY, OSINT, SEC_OPS"
         },
         "review_deadline": {
           "type": "string",
@@ -82,7 +82,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["SPECTRE", "PHANTOM", "CEREBRO", "NEUTRON", "GLOBAL"]
+            "enum": ["SPECTRE", "PHANTOM", "CEREBRO", "NEUTRON", "GLOBAL", "IntelSense"]
           }
         },
         "layers": {
