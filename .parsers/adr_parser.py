@@ -319,33 +319,59 @@ class ADRParser:
         risks = []
         if 'consequences' in fm and 'risks' in fm['consequences']:
             for r in fm['consequences']['risks']:
-                risks.append(Risk(
-                    risk=r.get('risk', ''),
-                    probability=r.get('probability', 'medium'),
-                    impact=r.get('impact', 'medium'),
-                    mitigation=r.get('mitigation')
-                ))
+                # Support both string and dict formats
+                if isinstance(r, str):
+                    risks.append(Risk(
+                        risk=r,
+                        probability='medium',
+                        impact='medium',
+                        mitigation=None
+                    ))
+                elif isinstance(r, dict):
+                    risks.append(Risk(
+                        risk=r.get('risk', ''),
+                        probability=r.get('probability', 'medium'),
+                        impact=r.get('impact', 'medium'),
+                        mitigation=r.get('mitigation')
+                    ))
         
         # Parse alternatives
         alternatives = []
         if 'rationale' in fm and 'alternatives_considered' in fm['rationale']:
             for alt in fm['rationale']['alternatives_considered']:
-                alternatives.append(Alternative(
-                    option=alt.get('option', ''),
-                    pros=alt.get('pros', []),
-                    cons=alt.get('cons', []),
-                    why_rejected=alt.get('why_rejected')
-                ))
+                # Support both string and dict formats
+                if isinstance(alt, str):
+                    alternatives.append(Alternative(
+                        option=alt,
+                        pros=[],
+                        cons=[],
+                        why_rejected=None
+                    ))
+                elif isinstance(alt, dict):
+                    alternatives.append(Alternative(
+                        option=alt.get('option', ''),
+                        pros=alt.get('pros', []),
+                        cons=alt.get('cons', []),
+                        why_rejected=alt.get('why_rejected')
+                    ))
         
         # Parse tasks
         tasks = []
         if 'implementation' in fm and 'tasks' in fm['implementation']:
             for t in fm['implementation']['tasks']:
-                tasks.append(Task(
-                    task=t.get('task', ''),
-                    owner=t.get('owner'),
-                    status=t.get('status', 'todo')
-                ))
+                # Support both string and dict formats
+                if isinstance(t, str):
+                    tasks.append(Task(
+                        task=t,
+                        owner=None,
+                        status='todo'
+                    ))
+                elif isinstance(t, dict):
+                    tasks.append(Task(
+                        task=t.get('task', ''),
+                        owner=t.get('owner'),
+                        status=t.get('status', 'todo')
+                    ))
         
         # Parse changelog
         changelog = []
@@ -596,37 +622,193 @@ class KnowledgeTransformer:
 
 
 # =============================================================================
+# EXPORT FILTERING
+# =============================================================================
+
+@dataclass
+class ExportFilter:
+    """Filter criteria for ADR export."""
+    statuses: Optional[List[ADRStatus]] = None
+    projects: Optional[List[str]] = None
+    classifications: Optional[List[Classification]] = None
+    since_date: Optional[str] = None  # YYYY-MM-DD
+    until_date: Optional[str] = None  # YYYY-MM-DD
+
+    def matches(self, node: ADRNode) -> bool:
+        """Check if node matches all filter criteria."""
+        # Status filter
+        if self.statuses and node.status not in self.statuses:
+            return False
+
+        # Project filter (OR logic: matches if node has ANY of the specified projects)
+        if self.projects and not any(p in node.projects for p in self.projects):
+            return False
+
+        # Classification filter
+        if self.classifications and node.classification not in self.classifications:
+            return False
+
+        # Date range filter
+        if self.since_date and node.date < self.since_date:
+            return False
+        if self.until_date and node.date > self.until_date:
+            return False
+
+        return True
+
+
+class ADRExporter:
+    """
+    Export ADRs in JSON/JSONL format with filtering.
+    Outputs knowledge fragments (RAG-optimized) instead of raw nodes.
+    """
+
+    def __init__(self, nodes: List[ADRNode]):
+        self.nodes = nodes
+
+    def export(self,
+               format: str = 'json',
+               filter: Optional[ExportFilter] = None,
+               compact: bool = False) -> str:
+        """
+        Export ADRs as JSON or JSONL.
+
+        Args:
+            format: 'json' or 'jsonl'
+            filter: Optional filter criteria
+            compact: If True, minified JSON (no whitespace)
+
+        Returns:
+            JSON or JSONL string
+        """
+        # Apply filters
+        filtered_nodes = self.nodes
+        if filter:
+            filtered_nodes = [n for n in self.nodes if filter.matches(n)]
+
+        # Convert to knowledge fragments
+        fragments = [n.to_knowledge_fragment() for n in filtered_nodes]
+
+        if format == 'jsonl':
+            return self._to_jsonl(fragments, compact)
+        else:
+            return self._to_json(fragments, compact)
+
+    def _to_json(self, fragments: List[Dict[str, Any]], compact: bool) -> str:
+        """Export as JSON array."""
+        indent = None if compact else 2
+        return json.dumps(fragments, indent=indent, ensure_ascii=False, default=str)
+
+    def _to_jsonl(self, fragments: List[Dict[str, Any]], compact: bool) -> str:
+        """Export as JSONL (one JSON per line)."""
+        lines = []
+        for fragment in fragments:
+            if compact:
+                lines.append(json.dumps(fragment, ensure_ascii=False, default=str))
+            else:
+                # Pretty JSONL: indented JSON, blank line separator
+                lines.append(json.dumps(fragment, indent=2, ensure_ascii=False, default=str))
+        return '\n'.join(lines)
+
+
+# =============================================================================
 # CLI
 # =============================================================================
 
 def main():
     import argparse
-    
+    import sys
+
+    # Backward compatibility: detect if using old-style (no subcommand)
+    # If first arg is not 'parse' or 'export', assume old-style usage
+    if len(sys.argv) > 1 and sys.argv[1] not in ['parse', 'export', '-h', '--help']:
+        # Old-style usage: adr_parser.py <path> [options]
+        parser = argparse.ArgumentParser(
+            description='ADR Parser - Transform Architecture Decisions into Knowledge Law'
+        )
+        parser.add_argument('path', help='Path to ADR file or directory')
+        parser.add_argument('--output', '-o', default='stdout', help='Output file (default: stdout)')
+        parser.add_argument('--format', '-f',
+                            choices=['json', 'knowledge', 'spectre', 'phantom', 'graph'],
+                            default='json', help='Output format')
+        parser.add_argument('--pretty', '-p', action='store_true', help='Pretty print JSON')
+        parser.add_argument('--schema', '-s', help='Path to JSON schema for validation')
+        args = parser.parse_args()
+        return handle_parse(args)
+
+    # New-style usage with subcommands
     parser = argparse.ArgumentParser(
-        description='ADR Parser - Transform Architecture Decisions into Knowledge Law'
+        description='ADR Parser - Transform Architecture Decisions into Knowledge Law',
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument('path', help='Path to ADR file or directory')
-    parser.add_argument('--output', '-o', default='stdout', help='Output file (default: stdout)')
-    parser.add_argument('--format', '-f', choices=['json', 'knowledge', 'spectre', 'phantom', 'graph'],
-                       default='json', help='Output format')
-    parser.add_argument('--pretty', '-p', action='store_true', help='Pretty print JSON')
-    parser.add_argument('--schema', '-s', help='Path to JSON schema for validation')
-    
+
+    # Use subparsers for 'parse' vs 'export' commands
+    subparsers = parser.add_subparsers(dest='command', help='Command to run', required=True)
+
+    # =========================================================================
+    # PARSE command (existing behavior: full node dumps)
+    # =========================================================================
+    parser_cmd = subparsers.add_parser('parse', help='Parse ADRs (full node output)')
+    parser_cmd.add_argument('path', help='Path to ADR file or directory')
+    parser_cmd.add_argument('--output', '-o', default='stdout', help='Output file (default: stdout)')
+    parser_cmd.add_argument('--format', '-f',
+                            choices=['json', 'knowledge', 'spectre', 'phantom', 'graph'],
+                            default='json', help='Output format')
+    parser_cmd.add_argument('--pretty', '-p', action='store_true', help='Pretty print JSON')
+    parser_cmd.add_argument('--schema', '-s', help='Path to JSON schema for validation')
+
+    # =========================================================================
+    # EXPORT command (new: knowledge fragments with filtering)
+    # =========================================================================
+    export_cmd = subparsers.add_parser('export',
+                                       help='Export ADRs as JSON/JSONL (knowledge fragments)')
+    export_cmd.add_argument('path', help='Path to ADR file or directory')
+    export_cmd.add_argument('--output', '-o', default='stdout', help='Output file (default: stdout)')
+    export_cmd.add_argument('--format', '-f', choices=['json', 'jsonl'],
+                            default='json', help='Export format (default: json)')
+    export_cmd.add_argument('--compact', '-c', action='store_true',
+                            help='Minified JSON (no whitespace)')
+
+    # Filtering options
+    export_cmd.add_argument('--filter-status', action='append',
+                            choices=['proposed', 'accepted', 'rejected', 'deprecated', 'superseded'],
+                            help='Filter by status (can specify multiple)')
+    export_cmd.add_argument('--filter-project', action='append',
+                            help='Filter by project (can specify multiple)')
+    export_cmd.add_argument('--filter-classification', action='append',
+                            choices=['critical', 'major', 'minor', 'patch'],
+                            help='Filter by classification')
+    export_cmd.add_argument('--since', help='Filter by date (YYYY-MM-DD, inclusive)')
+    export_cmd.add_argument('--until', help='Filter by date (YYYY-MM-DD, inclusive)')
+
+    # Parse arguments
     args = parser.parse_args()
-    
-    adr_parser = ADRParser(schema_path=args.schema)
-    
+
+    # Route to handler
+    if args.command == 'export':
+        return handle_export(args)
+    else:
+        return handle_parse(args)
+
+
+def handle_parse(args):
+    """Handle 'parse' command (existing behavior)."""
+    import sys
+
+    adr_parser = ADRParser(schema_path=getattr(args, 'schema', None))
+
     path = Path(args.path)
     if path.is_file():
         nodes = [adr_parser.parse_file(str(path))]
     elif path.is_dir():
         nodes = adr_parser.parse_directory(str(path))
     else:
-        print(f"Error: {path} not found")
+        print(f"Error: {path} not found", file=sys.stderr)
         return 1
-    
+
     transformer = KnowledgeTransformer(nodes)
-    
+
+    # Generate output based on format
     if args.format == 'json':
         output = [n.to_dict() for n in nodes]
     elif args.format == 'knowledge':
@@ -637,17 +819,67 @@ def main():
         output = transformer.to_phantom_training_format()
     elif args.format == 'graph':
         output = transformer.to_knowledge_base()['graph']
-    
-    indent = 2 if args.pretty else None
+
+    indent = 2 if getattr(args, 'pretty', False) else None
     json_output = json.dumps(output, indent=indent, ensure_ascii=False, default=str)
-    
+
     if args.output == 'stdout':
         print(json_output)
     else:
-        with open(args.output, 'w') as f:
+        with open(args.output, 'w', encoding='utf-8') as f:
             f.write(json_output)
-        print(f"Output written to {args.output}")
-    
+        print(f"Output written to {args.output}", file=sys.stderr)
+
+    return 0
+
+
+def handle_export(args):
+    """Handle 'export' command (new: knowledge fragments with filtering)."""
+    import sys
+
+    adr_parser = ADRParser()
+
+    path = Path(args.path)
+    if path.is_file():
+        nodes = [adr_parser.parse_file(str(path))]
+    elif path.is_dir():
+        nodes = adr_parser.parse_directory(str(path))
+    else:
+        print(f"Error: {path} not found", file=sys.stderr)
+        return 1
+
+    # Build filter object if any filters specified
+    filter_obj = None
+    if any([args.filter_status, args.filter_project, args.filter_classification,
+            args.since, args.until]):
+        filter_obj = ExportFilter(
+            statuses=[ADRStatus(s) for s in args.filter_status] if args.filter_status else None,
+            projects=args.filter_project,
+            classifications=[Classification(c) for c in args.filter_classification]
+                           if args.filter_classification else None,
+            since_date=args.since,
+            until_date=args.until
+        )
+
+    # Export with exporter
+    exporter = ADRExporter(nodes)
+    output = exporter.export(
+        format=args.format,
+        filter=filter_obj,
+        compact=args.compact
+    )
+
+    # Output
+    if args.output == 'stdout':
+        print(output)
+    else:
+        with open(args.output, 'w', encoding='utf-8') as f:
+            f.write(output)
+
+        # Count filtered results
+        filtered_count = len([n for n in nodes if not filter_obj or filter_obj.matches(n)])
+        print(f"Exported {filtered_count} ADR(s) to {args.output}", file=sys.stderr)
+
     return 0
 
 

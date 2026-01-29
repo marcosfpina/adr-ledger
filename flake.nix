@@ -176,6 +176,11 @@
                 $PARSER "$@"
                 ;;
 
+              export)
+                # Export ADRs in JSON/JSONL format with filtering
+                $PARSER export "$@"
+                ;;
+
               bash-cli)
                 # Use the original bash CLI
                 ${pkgs.bash}/bin/bash ${./scripts/adr} "$@"
@@ -191,13 +196,29 @@
               sync         Generate knowledge artifacts (JSON outputs)
               validate     Validate ADRs against schema
               parser       Direct access to Python parser
+              export       Export ADRs as JSON/JSONL with filtering
               bash-cli     Use original bash CLI
 
             Examples:
               adr sync
               adr validate
               adr parser adr/accepted --format json --pretty
+
+              # Export examples
+              adr export adr/accepted --format jsonl --compact
+              adr export adr --format json --filter-status accepted --filter-project CEREBRO
+              adr export adr/accepted --format jsonl --since 2026-01-01
+
               adr bash-cli new -t "New Decision" -p CEREBRO -c major
+
+            Export filtering options:
+              --format json|jsonl              Output format (default: json)
+              --compact                        Minified JSON (no whitespace)
+              --filter-status STATUS           Filter by status (proposed, accepted, rejected, deprecated, superseded)
+              --filter-project PROJECT         Filter by project (CEREBRO, PHANTOM, SPECTRE, NEUTRON, GLOBAL)
+              --filter-classification CLASS    Filter by classification (critical, major, minor, patch)
+              --since YYYY-MM-DD              Filter ADRs from this date (inclusive)
+              --until YYYY-MM-DD              Filter ADRs until this date (inclusive)
 
             For full bash CLI help:
               adr bash-cli help

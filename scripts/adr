@@ -908,6 +908,14 @@ cmd_graph() {
     fi
 }
 
+cmd_export() {
+    # Ensure parser is executable
+    chmod +x "$PARSER" 2>/dev/null || true
+
+    # Forward all arguments to parser export command (silent mode)
+    python3 "$PARSER" export "$@"
+}
+
 cmd_validate() {
     local target="${1:-.}"
     local errors=0
@@ -986,6 +994,7 @@ COMMANDS:
     sync      Sincronizar Knowledge Base
     graph     Gerar grafo de dependências (Mermaid)
     validate  Validar ADRs
+    export    Export ADRs as JSON/JSONL with filtering
 
 EXAMPLES:
     adr new -t "Use Rust for Parser" -p SPECTRE -c major
@@ -996,6 +1005,11 @@ EXAMPLES:
     adr search "kubernetes"
     adr sync
     adr graph > graph.mmd
+
+    # Export examples
+    adr export adr/accepted --format jsonl --compact
+    adr export adr --filter-status accepted --filter-project CEREBRO
+    adr export adr/accepted --format json --since 2026-01-01
 
 OPTIONS:
     -t, --title           Título da ADR
@@ -1031,6 +1045,7 @@ main() {
         sync)      cmd_sync "$@" ;;
         graph)     cmd_graph "$@" ;;
         validate)  cmd_validate "$@" ;;
+        export)    cmd_export "$@" ;;
         help|--help|-h) cmd_help ;;
         *)
             log_error "Comando desconhecido: $cmd"
