@@ -42,3 +42,6 @@ Thumbs.db
 *.bak
 *.log
 ssh_sessions.db
+
+# Chain - Private keys (NEVER commit)
+.chain/keys/*.key

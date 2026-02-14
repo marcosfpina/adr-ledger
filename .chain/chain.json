@@ -1,0 +1,213 @@
+{
+  "version": "1.0",
+  "chain": [
+    {
+      "block_number": 0,
+      "adr_id": "GENESIS",
+      "content_hash": "026da36669158e2d3f8cd2297082bbe910f002f6fe5e03298127e44d584a98b4",
+      "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "timestamp": "2026-02-14T12:45:05-0200",
+      "signatures": [],
+      "block_hash": "6f69c9dd75fabd4e268e5b3ceea94a02af2c532482259b83c3f0d70d16ce6230"
+    },
+    {
+      "block_number": 1,
+      "adr_id": "ADR-0001",
+      "content_hash": "2df01bbbdfe2bf762149f8c478559bd107a63eb9518541767651af08c872ffc2",
+      "previous_hash": "6f69c9dd75fabd4e268e5b3ceea94a02af2c532482259b83c3f0d70d16ce6230",
+      "timestamp": "2025-01-10T00:00:00+0000",
+      "signatures": [
+        {
+          "signer_id": "pina",
+          "public_key": "jIDMf08NgVSYQgU0q5PqFoE6fOSJ6SzVBp2ASYr2PW0=",
+          "signature": "fdn7lUmZl/skd6HtRfC9y/uqn/saucwxDnSQBaLoDtTULzK8r6nrYBdF0itIgK4ttZWEI+wC8trEkOaaUBmpBw==",
+          "timestamp": "2026-02-14T12:46:26-0200",
+          "role": "architect"
+        }
+      ],
+      "block_hash": "94b9ae9b498675fc4a759e0107caa139197fc5d446b89ba5484bbaf17ce2d9f8"
+    },
+    {
+      "block_number": 2,
+      "adr_id": "ADR-0002",
+      "content_hash": "47ee43376d55891f050d45e8e6155c86b0ccfa2cdd539b9bb6f511037758a5ad",
+      "previous_hash": "94b9ae9b498675fc4a759e0107caa139197fc5d446b89ba5484bbaf17ce2d9f8",
+      "timestamp": "2025-01-10T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "c654ab0f5a0cf050e1ba29dcf15f79af7bb6d95eaf984327b4db591ff2a9e6ca"
+    },
+    {
+      "block_number": 3,
+      "adr_id": "ADR-0003",
+      "content_hash": "81e8431de24da3e7c6dcab1f9cd3201d4f870c34aded617fbbc36caad42aa58d",
+      "previous_hash": "c654ab0f5a0cf050e1ba29dcf15f79af7bb6d95eaf984327b4db591ff2a9e6ca",
+      "timestamp": "2025-01-10T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "0bf01c572fa99b1bcc8a6b4ad78e9228fa43438f9e19e7775b72632047347b17"
+    },
+    {
+      "block_number": 4,
+      "adr_id": "ADR-0004",
+      "content_hash": "f011e1eee3926acd0731698e186acb4443739d2c53544c325e753a83d78cbdde",
+      "previous_hash": "0bf01c572fa99b1bcc8a6b4ad78e9228fa43438f9e19e7775b72632047347b17",
+      "timestamp": "2025-01-10T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "a443bdc29406cf4f45e07634e2fca0e23d58d384c8c0b581976a66c37d8b0cfc"
+    },
+    {
+      "block_number": 5,
+      "adr_id": "ADR-0005",
+      "content_hash": "5992a94a1926c642670c020662f8960cf9e0354467116e7825ec306c59a06419",
+      "previous_hash": "a443bdc29406cf4f45e07634e2fca0e23d58d384c8c0b581976a66c37d8b0cfc",
+      "timestamp": "2025-01-10T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "f1c1c91650bd08fcfb1126f911aa5376b531ea09d9e0d73323b92536f3be5b02"
+    },
+    {
+      "block_number": 6,
+      "adr_id": "ADR-0006",
+      "content_hash": "fba88fd48a482352c71899024a033fda7db70fc2d532f64944d308549b103be6",
+      "previous_hash": "f1c1c91650bd08fcfb1126f911aa5376b531ea09d9e0d73323b92536f3be5b02",
+      "timestamp": "2026-01-11T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "c11087d7948f724332f0e89eeb6b075a61f5b5ff858da9cd053c5ede15350f69"
+    },
+    {
+      "block_number": 7,
+      "adr_id": "ADR-0007",
+      "content_hash": "3eb373fcd290a5a2eff414580a5b0f4682e1a97478be1604d3b80fa5c810f9a9",
+      "previous_hash": "c11087d7948f724332f0e89eeb6b075a61f5b5ff858da9cd053c5ede15350f69",
+      "timestamp": "2026-01-11T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "a93e1209322f3868b9e50aba660dfcfcb43bc7aa1c4b07d709fc625f61380dc3"
+    },
+    {
+      "block_number": 8,
+      "adr_id": "ADR-0008",
+      "content_hash": "112913d8ec5f35df28c18720015b65da105d939934bf4d3c6663be525a647e0d",
+      "previous_hash": "a93e1209322f3868b9e50aba660dfcfcb43bc7aa1c4b07d709fc625f61380dc3",
+      "timestamp": "2026-01-11T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "cb593713c9179f57b5f79fd14b4944afd4aef0280ae6b8d166cc6604ea1699fd"
+    },
+    {
+      "block_number": 9,
+      "adr_id": "ADR-0009",
+      "content_hash": "eb0ef8603836879e2d2769029f0a83bdb2fe25b95c28b5b71d474da1de84fd15",
+      "previous_hash": "cb593713c9179f57b5f79fd14b4944afd4aef0280ae6b8d166cc6604ea1699fd",
+      "timestamp": "2026-01-11T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "02c3dc9ca44062de9396b20528cd41b09cca5cac76f496df88e8b501a7f9f11f"
+    },
+    {
+      "block_number": 10,
+      "adr_id": "ADR-0010",
+      "content_hash": "57a0ee3bf8d5a159ddb272b1add7045b2b0ae64e38b8f3a543fcd30e4be59c1a",
+      "previous_hash": "02c3dc9ca44062de9396b20528cd41b09cca5cac76f496df88e8b501a7f9f11f",
+      "timestamp": "2026-01-14T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "8fa6e78b75f0f0073c1d230e309cb8f754738da33a3aabcb86c30dabf1573cea"
+    },
+    {
+      "block_number": 11,
+      "adr_id": "ADR-0013",
+      "content_hash": "9dbdc94796302cb3a8af660a98155260fec8f96794528ddae4931d9d9b454f34",
+      "previous_hash": "8fa6e78b75f0f0073c1d230e309cb8f754738da33a3aabcb86c30dabf1573cea",
+      "timestamp": "2026-01-26T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "fc5389989a179a91227c323b3cbe4ab16f316d78cdaa53c35dbb59959136e131"
+    },
+    {
+      "block_number": 12,
+      "adr_id": "ADR-0016",
+      "content_hash": "540fa35b2f551dd952377dc7983efae1885cedf936916d69f484a8b9555e74ce",
+      "previous_hash": "fc5389989a179a91227c323b3cbe4ab16f316d78cdaa53c35dbb59959136e131",
+      "timestamp": "2026-01-28T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "5c58ec91ae4cf1f3565c59881d2f6a57a127263a0d85187cb8f4c946566589ce"
+    },
+    {
+      "block_number": 13,
+      "adr_id": "ADR-0019",
+      "content_hash": "b08b76a6492fb0a724121334896750978a1e939e64d91cfa702219e606f0ef91",
+      "previous_hash": "5c58ec91ae4cf1f3565c59881d2f6a57a127263a0d85187cb8f4c946566589ce",
+      "timestamp": "2026-02-03T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "f48779b1dda4dc72a7aa30ca6202b8f77d6b69df7e0ebe1de14135f81c2c2683"
+    },
+    {
+      "block_number": 14,
+      "adr_id": "ADR-0020",
+      "content_hash": "76152cb83c31164d162d4c83a77b859ea01d11ed7a67378afd06db5bc285ff12",
+      "previous_hash": "f48779b1dda4dc72a7aa30ca6202b8f77d6b69df7e0ebe1de14135f81c2c2683",
+      "timestamp": "2026-02-03T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "17543447eacc676b5b169b5dba14cccef381e31a537c30e348879a268886e086"
+    },
+    {
+      "block_number": 15,
+      "adr_id": "ADR-0021",
+      "content_hash": "95c283f5b82b6740810b315af3353fd9d0760eb5661e896c9d5e1f310f3dbca7",
+      "previous_hash": "17543447eacc676b5b169b5dba14cccef381e31a537c30e348879a268886e086",
+      "timestamp": "2026-02-03T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "4b8e5160017586bd487de37b9864d14c50326e51ed08878e96b21f1c6e4a8bb1"
+    },
+    {
+      "block_number": 16,
+      "adr_id": "ADR-0022",
+      "content_hash": "2d94bba6cb1a0314225d0740f46d6a437dc55f48c51895ab98c67eb86d8058f6",
+      "previous_hash": "4b8e5160017586bd487de37b9864d14c50326e51ed08878e96b21f1c6e4a8bb1",
+      "timestamp": "2026-02-03T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "e0a937a951eff4009a9c85499c0e4b974ad47aa363587649ad5a6d25f787f189"
+    },
+    {
+      "block_number": 17,
+      "adr_id": "ADR-0023",
+      "content_hash": "be1dd0da7768c272cb0c03753b103c686a713ca7e9d80fa56077d358707a5f92",
+      "previous_hash": "e0a937a951eff4009a9c85499c0e4b974ad47aa363587649ad5a6d25f787f189",
+      "timestamp": "2026-02-03T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "58654ec31a9b781bd48f1af940ea86d39632a07b5be03880cee2741bddee9234"
+    },
+    {
+      "block_number": 18,
+      "adr_id": "ADR-0025",
+      "content_hash": "bc96495e4fda4a9ba6777f2112e8a5aba4ba4745002c153712d860a842ae1491",
+      "previous_hash": "58654ec31a9b781bd48f1af940ea86d39632a07b5be03880cee2741bddee9234",
+      "timestamp": "2026-02-04T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "547b3a17c27e01a88ddece8476eec389d30c5fa1b1648494e228818ba930121c"
+    },
+    {
+      "block_number": 19,
+      "adr_id": "ADR-0027",
+      "content_hash": "b31a7fc9d8b1acbe6805ba053d409cf345847fdd316d0b8edae03ed06f7d352b",
+      "previous_hash": "547b3a17c27e01a88ddece8476eec389d30c5fa1b1648494e228818ba930121c",
+      "timestamp": "2026-02-05T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "6168f25a6c629554e052c3f0d28b52d1b39cbd9059717f4eec6bfdefd3370c05"
+    },
+    {
+      "block_number": 20,
+      "adr_id": "ADR-0030",
+      "content_hash": "0863e0a9cdc700e0ba59a6b3d583d4aa1cfb5f374b0c807d5afeb70460f1e7d4",
+      "previous_hash": "6168f25a6c629554e052c3f0d28b52d1b39cbd9059717f4eec6bfdefd3370c05",
+      "timestamp": "2026-02-14T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "7c905aab5b46e5ba4fc56eebc25613cb557e031aab0bc682b42ebbb78c847656"
+    },
+    {
+      "block_number": 21,
+      "adr_id": "ADR-0031",
+      "content_hash": "75b9bd397508bd954b3e4750a5ba5b7260c0735819f384b6d71111d74fed7b86",
+      "previous_hash": "7c905aab5b46e5ba4fc56eebc25613cb557e031aab0bc682b42ebbb78c847656",
+      "timestamp": "2026-02-14T00:00:00+0000",
+      "signatures": [],
+      "block_hash": "811fc20aa4ba7faccebe3b42aab792f31c47073c4113a9c1f369972652acac97"
+    }
+  ],
+  "tip": "811fc20aa4ba7faccebe3b42aab792f31c47073c4113a9c1f369972652acac97",
+  "height": 22
+}
