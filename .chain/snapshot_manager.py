@@ -38,12 +38,16 @@ class ChainSnapshot:
     timestamp_proof: Optional[str]   # Reference to OTS/RFC3161 proof file
     snapshot_hash: str
     signature: Optional[dict]        # Ed25519 signature over snapshot_hash
+    sbom_hash: Optional[str] = None  # SHA256 of current SBOM manifest
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, d: dict) -> "ChainSnapshot":
+        # Handle older snapshots without sbom_hash
+        if "sbom_hash" not in d:
+            d["sbom_hash"] = None
         return cls(**d)
 
     def compute_hash(self) -> str:
@@ -57,6 +61,8 @@ class ChainSnapshot:
             f"{json.dumps(self.by_project, sort_keys=True)}|"
             f"{self.previous_snapshot_hash}"
         )
+        if self.sbom_hash is not None:
+            canonical += f"|{self.sbom_hash}"
         return compute_content_hash(canonical)
 
 
@@ -162,6 +168,16 @@ class SnapshotManager:
 
         ts = time.strftime("%Y-%m-%dT%H:%M:%S%z")
 
+        # Load SBOM hash if available
+        sbom_hash = None
+        sbom_file = CHAIN_DIR / "sbom" / "sbom_current.json"
+        if sbom_file.exists():
+            try:
+                sbom_data = json.loads(sbom_file.read_text())
+                sbom_hash = sbom_data.get("sbom_hash")
+            except (json.JSONDecodeError, KeyError):
+                pass
+
         snapshot = ChainSnapshot(
             snapshot_id=next_id,
             timestamp=ts,
@@ -178,6 +194,7 @@ class SnapshotManager:
             timestamp_proof=None,
             snapshot_hash="",
             signature=None,
+            sbom_hash=sbom_hash,
         )
 
         # Compute hash

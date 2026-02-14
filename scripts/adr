@@ -1036,6 +1036,7 @@ COMMANDS:
     graph     Gerar grafo de dependências (Mermaid)
     validate  Validar ADRs
     export    Export ADRs as JSON/JSONL with filtering
+    sbom       Supply chain SBOM & dependency inventory
 
 EXAMPLES:
     adr new -t "Use Rust for Parser" -p SPECTRE -c major
@@ -1132,6 +1133,12 @@ cmd_federation() {
     python3.13 "${CHAIN_DIR}/federation.py" "$subcmd" "$@"
 }
 
+cmd_sbom() {
+    local subcmd="${1:-show}"
+    shift || true
+    python3.13 "${CHAIN_DIR}/sbom_manager.py" "$subcmd" "$@"
+}
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -1160,6 +1167,7 @@ main() {
         provenance) cmd_provenance "$@" ;;
         economics) cmd_economics "$@" ;;
         federation) cmd_federation "$@" ;;
+        sbom)      cmd_sbom "$@" ;;
         verify-chain) cmd_chain verify ;;
         help|--help|-h) cmd_help ;;
         *)

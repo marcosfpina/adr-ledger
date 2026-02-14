@@ -459,6 +459,24 @@
             touch $out
           '';
 
+          # Verificar SBOM integrity (se existir)
+          sbom-valid = pkgs.runCommand "validate-sbom" {
+            buildInputs = [
+              python
+              pythonPackages.pyyaml
+              pythonPackages.pynacl
+            ];
+          } ''
+            if [ -f ${./.chain/sbom/sbom_current.json} ]; then
+              cd ${./.}
+              ${python}/bin/python3.13 .chain/sbom_manager.py verify
+              echo "SBOM verification passed"
+            else
+              echo "No SBOM found (skipping verification)"
+            fi
+            touch $out
+          '';
+
           # Verificar integridade da chain (se existir)
           chain-valid = pkgs.runCommand "validate-chain" {
             buildInputs = [

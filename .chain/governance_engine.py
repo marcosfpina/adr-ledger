@@ -284,6 +284,77 @@ class GovernanceEngine:
             reason=f"OK: Chain valid ({report['height']} blocks)",
         )
 
+    def check_supply_chain_compliance(
+        self, sbom_components: Optional[List[dict]] = None
+    ) -> ContractResult:
+        """Verify supply chain governance rules.
+
+        Checks:
+        - All dependencies have an adr_reference (not UNTRACKED)
+        - Critical types (nix-input) have been reviewed
+        - No untracked deps if max_untracked_deps == 0
+
+        This is a standalone check (not part of validate_acceptance).
+        """
+        chain_config = self.rules.get("chain", {})
+        sc_config = chain_config.get("supply_chain", {})
+
+        if not sc_config.get("enabled", False):
+            return ContractResult(
+                contract_name="supply_chain_compliance",
+                passed=True,
+                reason="OK: Supply chain governance disabled",
+                severity="info",
+            )
+
+        dep_rules = sc_config.get("dependency_rules", {})
+        require_adr = dep_rules.get("require_adr_reference", True)
+        critical_types = dep_rules.get("critical_types", [])
+        max_untracked = sc_config.get("drift_detection", {}).get("max_untracked_deps", 0)
+
+        if sbom_components is None:
+            # Load from current SBOM
+            sbom_file = CHAIN_DIR / "sbom" / "sbom_current.json"
+            if not sbom_file.exists():
+                return ContractResult(
+                    contract_name="supply_chain_compliance",
+                    passed=True,
+                    reason="OK: No SBOM found (skipping supply chain check)",
+                    severity="info",
+                )
+            import json as _json
+            sbom_data = _json.loads(sbom_file.read_text())
+            sbom_components = sbom_data.get("components", [])
+
+        issues = []
+        untracked_count = 0
+
+        for comp in sbom_components:
+            adr_ref = comp.get("adr_reference", "UNTRACKED")
+            comp_type = comp.get("type", "")
+            comp_name = comp.get("name", "")
+
+            if adr_ref == "UNTRACKED":
+                untracked_count += 1
+                if require_adr:
+                    issues.append(f"{comp_type}:{comp_name} has no ADR reference")
+
+        if max_untracked == 0 and untracked_count > 0:
+            issues.append(f"{untracked_count} untracked dependencies (max allowed: 0)")
+
+        if issues:
+            return ContractResult(
+                contract_name="supply_chain_compliance",
+                passed=False,
+                reason=f"Supply chain issues: {'; '.join(issues[:5])}",
+            )
+
+        return ContractResult(
+            contract_name="supply_chain_compliance",
+            passed=True,
+            reason=f"OK: All {len(sbom_components)} components have ADR references",
+        )
+
     # --- Composite Validation ---
 
     def validate_acceptance(

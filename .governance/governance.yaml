@@ -377,3 +377,20 @@ chain:
     enabled: false                 # Enable when peers are configured
     auto_export_topics: []
     trust_model: "explicit"        # explicit | web_of_trust
+
+  # Supply chain SBOM governance
+  supply_chain:
+    enabled: true
+    version: "1.0"
+    sbom:
+      format: "cyclonedx-1.6"
+      auto_generate_on_accept: true
+      sign_sbom: true
+    dependency_rules:
+      require_adr_reference: true
+      critical_types: [nix-input]
+      review_required_for: [new_dependency, version_major_bump]
+    drift_detection:
+      enabled: true
+      check_on_commit: true
+      max_untracked_deps: 0

@@ -307,6 +307,38 @@
           }
         }
       }
+    },
+    "supply_chain": {
+      "type": "object",
+      "description": "Supply chain dependency governance",
+      "properties": {
+        "dependencies_introduced": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "type": { "type": "string", "enum": ["nix-input", "python-pkg", "system-tool", "internal-module"] },
+              "justification": { "type": "string" }
+            },
+            "required": ["name", "type", "justification"]
+          }
+        },
+        "dependencies_removed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "sbom_impact": {
+          "type": "string",
+          "enum": ["none", "minor", "major", "critical"]
+        }
+      }
     }
   }
 }
