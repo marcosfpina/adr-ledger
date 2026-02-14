@@ -30,9 +30,10 @@
 
             src = ./.;
 
-            # Apenas PyYAML como dependência externa
+            # Dependências Python
             propagatedBuildInputs = with pythonPackages; [
               pyyaml
+              pynacl   # Ed25519 signatures for decision chain
             ];
 
             # Script de entrada
@@ -44,6 +45,11 @@
 
               # Instalar o parser
               cp .parsers/adr_parser.py $out/lib/
+
+              # Instalar chain modules (private blockchain)
+              if [ -d .chain ]; then
+                cp .chain/*.py $out/lib/ 2>/dev/null || true
+              fi
 
               # Criar wrapper executável
               cat > $out/bin/adr-parser <<EOF
@@ -362,22 +368,23 @@
         devShells.default = pkgs.mkShell {
           name = "adr-ledger-dev";
 
-          buildInputs = with pkgs; [
-            # Python e dependências
-            python3
-            python3Packages.pyyaml
-            python3Packages.jsonschema
+          buildInputs = [
+            # Python 3.13 e dependências
+            python
+            pythonPackages.pyyaml
+            pythonPackages.pynacl    # Ed25519 for decision chain
+            pythonPackages.jsonschema
 
             # Ferramentas de validação
-            check-jsonschema
-            yamllint
-            jq
+            pkgs.check-jsonschema
+            pkgs.yamllint
+            pkgs.jq
 
             # Ferramentas de visualização
-            graphviz
+            pkgs.graphviz
 
             # Git
-            git
+            pkgs.git
 
             # Packages deste flake
             self.packages.${system}.adr-parser
@@ -440,7 +447,7 @@
           parser-tests = pkgs.runCommand "parser-tests" {
             buildInputs = [
               self.packages.${system}.adr-parser
-              pkgs.python3Packages.pyyaml
+              pythonPackages.pyyaml
             ];
           } ''
             # Tentar parsear os ADRs aceitos
@@ -449,6 +456,24 @@
               --format json > /dev/null
 
             echo "Parser tests passed"
+            touch $out
+          '';
+
+          # Verificar integridade da chain (se existir)
+          chain-valid = pkgs.runCommand "validate-chain" {
+            buildInputs = [
+              python
+              pythonPackages.pyyaml
+              pythonPackages.pynacl
+            ];
+          } ''
+            if [ -f ${./.chain/chain.json} ]; then
+              cd ${./.}
+              ${python}/bin/python3.13 .chain/chain_manager.py verify
+              echo "Chain verification passed"
+            else
+              echo "No chain found (skipping verification)"
+            fi
             touch $out
           '';
         };

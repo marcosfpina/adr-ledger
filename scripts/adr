@@ -703,33 +703,63 @@ cmd_show() {
 
 cmd_accept() {
     local id="$1"
-    
+
     if [[ -z "$id" ]]; then
         log_error "ID é obrigatório: adr accept ADR-0001"
         exit 1
     fi
-    
+
     local source="${ADR_DIR}/proposed/${id}.md"
     local target="${ADR_DIR}/accepted/${id}.md"
-    
+
     if [[ ! -f "$source" ]]; then
         log_error "ADR não encontrado em proposed: $id"
         exit 1
     fi
-    
+
+    # Run governance contracts (smart contract validation)
+    local chain_dir="${ADR_ROOT}/.chain"
+    if [[ -f "${chain_dir}/governance_engine.py" ]]; then
+        log_info "Executando governance contracts..."
+        if ! python3.13 "${chain_dir}/governance_engine.py" validate-accept "$id" 2>&1; then
+            log_error "Governance contracts falharam. Acceptance bloqueado."
+            exit 1
+        fi
+    fi
+
     # Update status in file
     sed -i 's/^status: proposed/status: accepted/' "$source"
-    
+
     # Update last_modified
     local timestamp=$(date -Iseconds)
     sed -i "s/last_modified:.*/last_modified: \"${timestamp}\"/
-    
+
     # Move file
     mv "$source" "$target"
-    
+
     log_success "ADR aceito: $id"
     log_info "Movido para: $target"
-    
+
+    # Append block to decision chain
+    if [[ -f "${chain_dir}/chain.json" ]]; then
+        log_info "Appending block to decision chain..."
+        python3.13 "${chain_dir}/chain_manager.py" append "$id" 2>&1 || true
+    fi
+
+    # Rebuild Merkle tree
+    if [[ -f "${chain_dir}/merkle_tree.py" ]]; then
+        log_info "Rebuilding Merkle tree..."
+        python3.13 "${chain_dir}/merkle_tree.py" build 2>&1 || true
+    fi
+
+    # Add provenance entry for acceptance
+    if [[ -f "${chain_dir}/provenance.py" ]]; then
+        python3.13 "${chain_dir}/provenance.py" add "$id" \
+            --stage acceptance \
+            --actor "$(git config user.name || echo system)" \
+            --description "ADR accepted and moved to accepted/" 2>/dev/null || true
+    fi
+
     # Trigger knowledge update
     cmd_sync
 }
@@ -780,16 +810,16 @@ cmd_sync() {
     chmod +x "$PARSER" 2>/dev/null || true
     
     # Generate knowledge base
-    python3 "$PARSER" "$ADR_DIR" --format knowledge --pretty -o "${KNOWLEDGE_DIR}/knowledge_base.json"
+    python3.13 "$PARSER" "$ADR_DIR" --format knowledge --pretty -o "${KNOWLEDGE_DIR}/knowledge_base.json"
     
     # Generate graph
-    python3 "$PARSER" "$ADR_DIR" --format graph --pretty -o "${KNOWLEDGE_DIR}/graph.json"
+    python3.13 "$PARSER" "$ADR_DIR" --format graph --pretty -o "${KNOWLEDGE_DIR}/graph.json"
     
     # Generate SPECTRE format
-    python3 "$PARSER" "$ADR_DIR" --format spectre --pretty -o "${KNOWLEDGE_DIR}/spectre_corpus.json"
+    python3.13 "$PARSER" "$ADR_DIR" --format spectre --pretty -o "${KNOWLEDGE_DIR}/spectre_corpus.json"
     
     # Generate PHANTOM format
-    python3 "$PARSER" "$ADR_DIR" --format phantom --pretty -o "${KNOWLEDGE_DIR}/phantom_training.json"
+    python3.13 "$PARSER" "$ADR_DIR" --format phantom --pretty -o "${KNOWLEDGE_DIR}/phantom_training.json"
     
     # Generate index
     cat > "${KNOWLEDGE_DIR}/index.json" << EOF
@@ -822,7 +852,18 @@ cmd_sync() {
 EOF
     
     log_success "Knowledge Base atualizada em ${KNOWLEDGE_DIR}/"
-    
+
+    # Rebuild Merkle tree if chain exists
+    if [[ -f "${CHAIN_DIR}/chain.json" && -f "${CHAIN_DIR}/merkle_tree.py" ]]; then
+        log_info "Rebuilding Merkle tree..."
+        python3.13 "${CHAIN_DIR}/merkle_tree.py" build 2>/dev/null || true
+    fi
+
+    # Generate economics report if enabled
+    if [[ -f "${CHAIN_DIR}/economics.py" ]]; then
+        python3.13 "${CHAIN_DIR}/economics.py" report 2>/dev/null || true
+    fi
+
     # Stats
     local total=$(find "$ADR_DIR" -name "ADR-*.md" | wc -l)
     local accepted=$(find "${ADR_DIR}/accepted" -name "ADR-*.md" 2>/dev/null | wc -l)
@@ -913,7 +954,7 @@ cmd_export() {
     chmod +x "$PARSER" 2>/dev/null || true
 
     # Forward all arguments to parser export command (silent mode)
-    python3 "$PARSER" export "$@"
+    python3.13 "$PARSER" export "$@"
 }
 
 cmd_validate() {
@@ -1028,6 +1069,70 @@ EOF
 }
 
 # =============================================================================
+# BLOCKCHAIN COMMANDS
+# =============================================================================
+
+CHAIN_DIR="${ADR_ROOT}/.chain"
+
+cmd_chain() {
+    local subcmd="${1:-status}"
+    shift || true
+    python3.13 "${CHAIN_DIR}/chain_manager.py" "$subcmd" "$@"
+}
+
+cmd_sign() {
+    local adr_id="$1"
+    local signer="${2:-$(git config user.name)}"
+
+    if [[ -z "$adr_id" ]]; then
+        log_error "Uso: adr sign <ADR_ID> [signer_name]"
+        exit 1
+    fi
+
+    python3.13 "${CHAIN_DIR}/chain_manager.py" sign "$adr_id" --signer "$signer"
+}
+
+cmd_keygen() {
+    python3.13 "${CHAIN_DIR}/crypto.py" keygen "$@"
+}
+
+cmd_prove() {
+    local adr_id="$1"
+    shift || true
+
+    if [[ -z "$adr_id" ]]; then
+        log_error "Uso: adr prove <ADR_ID>"
+        exit 1
+    fi
+
+    python3.13 "${CHAIN_DIR}/merkle_tree.py" prove "$adr_id" "$@"
+}
+
+cmd_snapshot() {
+    local subcmd="${1:-create}"
+    shift || true
+    python3.13 "${CHAIN_DIR}/snapshot_manager.py" "$subcmd" "$@"
+}
+
+cmd_provenance() {
+    local subcmd="${1:-list}"
+    shift || true
+    python3.13 "${CHAIN_DIR}/provenance.py" "$subcmd" "$@"
+}
+
+cmd_economics() {
+    local subcmd="${1:-report}"
+    shift || true
+    python3.13 "${CHAIN_DIR}/economics.py" "$subcmd" "$@"
+}
+
+cmd_federation() {
+    local subcmd="${1:-status}"
+    shift || true
+    python3.13 "${CHAIN_DIR}/federation.py" "$subcmd" "$@"
+}
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -1046,6 +1151,16 @@ main() {
         graph)     cmd_graph "$@" ;;
         validate)  cmd_validate "$@" ;;
         export)    cmd_export "$@" ;;
+        # --- Blockchain commands ---
+        chain)     cmd_chain "$@" ;;
+        sign)      cmd_sign "$@" ;;
+        keygen)    cmd_keygen "$@" ;;
+        prove)     cmd_prove "$@" ;;
+        snapshot)  cmd_snapshot "$@" ;;
+        provenance) cmd_provenance "$@" ;;
+        economics) cmd_economics "$@" ;;
+        federation) cmd_federation "$@" ;;
+        verify-chain) cmd_chain verify ;;
         help|--help|-h) cmd_help ;;
         *)
             log_error "Comando desconhecido: $cmd"

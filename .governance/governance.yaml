@@ -317,3 +317,63 @@ knowledge_graph:
     max_depth: 5
     include_deprecated: false
     weight_by_recency: true
+
+# =============================================================================
+# DECISION CHAIN (PRIVATE BLOCKCHAIN)
+# =============================================================================
+chain:
+  enabled: true
+  version: "1.0"
+
+  # Require Ed25519 signatures on chain blocks
+  require_signatures: true
+  signature_requirements:
+    critical: 2   # architect + security_lead
+    major: 1      # architect OR security_lead
+    minor: 1      # architect OR engineer
+    patch: 1      # engineer
+
+  # Merkle tree for inclusion proofs
+  merkle_tree:
+    enabled: true
+    rebuild_on_accept: true
+
+  # Temporal anchoring (external proof of existence)
+  timestamp_anchoring:
+    enabled: false                 # Enable when ready for external anchoring
+    method: "opentimestamps"       # opentimestamps | rfc3161
+    anchor_on_accept: false
+    anchor_frequency: "weekly"
+
+  # Cryptographic state snapshots
+  snapshots:
+    enabled: true
+    create_on_accept: true
+    sign_snapshots: true
+
+  # Smart governance contracts
+  governance_contracts:
+    enabled: true
+    mode: "enforce"                # enforce | warn | audit
+    pre_acceptance_validation: true
+    post_acceptance_verification: true
+    audit_log: true
+
+  # Decision provenance tracking
+  provenance:
+    enabled: true
+    auto_track_acceptance: true
+    auto_track_proposal: true
+    require_signatures: false
+
+  # Decision economics / quality metrics
+  economics:
+    enabled: true
+    compute_on_sync: true
+    quality_threshold: 0.4         # Warn below this score
+
+  # Federation (cross-org sharing)
+  federation:
+    enabled: false                 # Enable when peers are configured
+    auto_export_topics: []
+    trust_model: "explicit"        # explicit | web_of_trust

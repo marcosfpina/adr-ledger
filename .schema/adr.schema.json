@@ -266,6 +266,47 @@
           }
         }
       }
+    },
+    "chain": {
+      "type": "object",
+      "description": "Blockchain chain reference (auto-populated on acceptance)",
+      "properties": {
+        "block_number": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Block number in the decision chain"
+        },
+        "block_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA256 hash of the chain block"
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA256 hash of the complete ADR file content"
+        },
+        "merkle_root": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Merkle tree root hash at time of acceptance"
+        },
+        "signatures": {
+          "type": "array",
+          "description": "Ed25519 digital signatures from approvers",
+          "items": {
+            "type": "object",
+            "properties": {
+              "signer": { "type": "string" },
+              "role": { "type": "string", "enum": ["architect", "engineer", "security_lead", "agent"] },
+              "public_key": { "type": "string" },
+              "signature": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" }
+            },
+            "required": ["signer", "role", "timestamp"]
+          }
+        }
+      }
     }
   }
 }
