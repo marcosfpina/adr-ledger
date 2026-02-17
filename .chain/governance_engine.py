@@ -533,7 +533,7 @@ def main():
 
         fm = _parse_adr_frontmatter(adr_file)
 
-        # Extract chain signatures if they exist
+        # Extract signatures: chain block OR pre-signatures
         chain_file = CHAIN_DIR / "chain.json"
         signatures = []
         if chain_file.exists():
@@ -542,6 +542,15 @@ def main():
                 if block.get("adr_id") == args.adr_id:
                     signatures = block.get("signatures", [])
                     break
+
+        # If no chain signatures, check for pre-signatures
+        if not signatures:
+            try:
+                from pre_sign import PreSignManager
+                psm = PreSignManager()
+                signatures = psm.get_signatures(args.adr_id)
+            except ImportError:
+                pass
 
         governance = fm.get("governance", {})
         scope = fm.get("scope", {})

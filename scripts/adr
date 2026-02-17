@@ -744,6 +744,25 @@ cmd_accept() {
     if [[ -f "${chain_dir}/chain.json" ]]; then
         log_info "Appending block to decision chain..."
         python3.13 "${chain_dir}/chain_manager.py" append "$id" 2>&1 || true
+
+        # Migrate pre-signatures to the new chain block
+        if [[ -f "${chain_dir}/pre_sign.py" ]]; then
+            python3.13 -c "
+import sys, json
+sys.path.insert(0, '${chain_dir}')
+from pre_sign import PreSignManager
+from chain_manager import ChainManager
+psm = PreSignManager()
+sigs = psm.migrate_to_block('${id}')
+if sigs:
+    cm = ChainManager()
+    block = cm.get_block_by_adr('${id}')
+    if block:
+        block.signatures.extend(sigs)
+        cm.save()
+        print(f'  Migrated {len(sigs)} pre-signature(s) to chain block')
+" 2>/dev/null || true
+        fi
     fi
 
     # Rebuild Merkle tree
@@ -1038,6 +1057,8 @@ COMMANDS:
     export    Export ADRs as JSON/JSONL with filtering
     sbom       Supply chain SBOM & dependency inventory
     anchor     Temporal anchoring (OpenTimestamps proofs)
+    pre-sign   Pre-sign ADR for critical acceptance (before accept)
+    pending-sigs  Manage pending pre-signatures
 
 EXAMPLES:
     adr new -t "Use Rust for Parser" -p SPECTRE -c major
@@ -1146,6 +1167,24 @@ cmd_anchor() {
     python3.13 "${CHAIN_DIR}/temporal.py" "$subcmd" "$@"
 }
 
+cmd_pre_sign() {
+    local adr_id="$1"
+    local signer="${2:-$(git config user.name)}"
+
+    if [[ -z "$adr_id" ]]; then
+        log_error "Uso: adr pre-sign <ADR_ID> [signer_name]"
+        exit 1
+    fi
+
+    python3.13 "${CHAIN_DIR}/pre_sign.py" sign "$adr_id" --signer "$signer"
+}
+
+cmd_pending_sigs() {
+    local subcmd="${1:-list}"
+    shift || true
+    python3.13 "${CHAIN_DIR}/pre_sign.py" "$subcmd" "$@"
+}
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -1176,6 +1215,8 @@ main() {
         federation) cmd_federation "$@" ;;
         sbom)      cmd_sbom "$@" ;;
         anchor)    cmd_anchor "$@" ;;
+        pre-sign)  cmd_pre_sign "$@" ;;
+        pending-sigs) cmd_pending_sigs "$@" ;;
         verify-chain) cmd_chain verify ;;
         help|--help|-h) cmd_help ;;
         *)
