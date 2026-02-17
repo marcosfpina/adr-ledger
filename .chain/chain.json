@@ -240,17 +240,17 @@
       "signatures": [
         {
           "signer_id": "pina",
-          "role": "architect",
           "public_key": "jIDMf08NgVSYQgU0q5PqFoE6fOSJ6SzVBp2ASYr2PW0=",
-          "signature": "b7Csukxw0c7TnGjj4uIhUtVk1qae8F91l0h1q5bLrDbk/UhH8kMyJFNnMf3x/ziX1VBRpBHsVa3WR9gFyZEZDQ==",
-          "timestamp": "2026-02-17T18:40:57-0200"
+          "signature": "Qx4rK8INgeyHz4PJ+M45IiZVNIKkzLXaTSF/7UB5wpFKSB7xMjwNliL7OS799bhTTEHSWnXgndzZTDJuE3eOBQ==",
+          "timestamp": "2026-02-17T19:35:35-0200",
+          "role": "architect"
         },
         {
           "signer_id": "security_lead",
-          "role": "security_lead",
           "public_key": "FLZr8PvhZmeVrPN9FpgZcny8xD6JjKtr58L9lReDHvU=",
-          "signature": "wpR7SpffZT2AUYoU6ElzCee63QTeAQ1ypi9B7nricGfUWCL6/ZJtDo7g/CBhRoZD4s+jC7GZzWajVH4qipocDg==",
-          "timestamp": "2026-02-17T18:40:57-0200"
+          "signature": "RRw07WFOiwS+lft8skujf+cRDqn6n5YBN/ygOAa7A9q0dYE2/VxEGuKGe1MyYU7nf0bi4ojLK3cqq/OFPpkaBg==",
+          "timestamp": "2026-02-17T19:35:35-0200",
+          "role": "security_lead"
         }
       ],
       "block_hash": "1e66f17cda33ac4beba7c47afea70a017735b40d2d878f34560854e036746960"

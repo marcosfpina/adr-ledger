@@ -368,11 +368,13 @@ class GovernanceEngine:
         sections: List[str],
         signatures: List[dict],
         actor: str = "system",
+        audit: bool = True,
     ) -> List[ContractResult]:
         """Run all governance contracts for ADR acceptance.
 
         Returns list of ContractResults. Acceptance is blocked
         if any error-severity contract fails.
+        Set audit=False to skip writing to the audit log (e.g. in Nix sandbox).
         """
         results = [
             self.check_id_format(adr_id),
@@ -385,15 +387,16 @@ class GovernanceEngine:
         ]
 
         # Log to audit trail
-        all_passed = all(r.passed for r in results if r.severity == "error")
-        self._write_audit(
-            adr_id=adr_id,
-            action="acceptance_validation",
-            actor=actor,
-            contracts=[r.to_dict() for r in results],
-            all_passed=all_passed,
-            metadata={"classification": classification, "projects": projects},
-        )
+        if audit:
+            all_passed = all(r.passed for r in results if r.severity == "error")
+            self._write_audit(
+                adr_id=adr_id,
+                action="acceptance_validation",
+                actor=actor,
+                contracts=[r.to_dict() for r in results],
+                all_passed=all_passed,
+                metadata={"classification": classification, "projects": projects},
+            )
 
         return results
 
@@ -509,6 +512,12 @@ def main():
     al = sub.add_parser("audit-log", help="Show recent audit entries")
     al.add_argument("--limit", type=int, default=20, help="Number of entries")
 
+    # validate-all
+    vall = sub.add_parser("validate-all", help="Validate all accepted ADRs against governance contracts")
+    vall.add_argument("--adr-dir", default=None, help="ADR directory (default: adr/accepted)")
+    vall.add_argument("--mode", choices=["strict", "warn"], default="warn",
+                      help="strict = exit 1 on any failure; warn = report only")
+
     # check-transition
     ct = sub.add_parser("check-transition", help="Check if a state transition is allowed")
     ct.add_argument("current", help="Current status")
@@ -602,6 +611,70 @@ def main():
         for r in results:
             symbol = "PASS" if r.passed else "FAIL"
             print(f"  [{symbol}] {r.contract_name}: {r.reason}")
+
+    elif args.command == "validate-all":
+        adr_root = CHAIN_DIR.parent / "adr"
+        adr_dir = Path(args.adr_dir) if args.adr_dir else adr_root / "accepted"
+
+        if not adr_dir.exists():
+            print(f"ERROR: Directory not found: {adr_dir}", file=sys.stderr)
+            sys.exit(1)
+
+        adr_files = sorted(adr_dir.glob("ADR-*.md"))
+        if not adr_files:
+            print(f"No ADR files found in {adr_dir}")
+            sys.exit(0)
+
+        # Load chain signatures map
+        chain_file = CHAIN_DIR / "chain.json"
+        chain_sigs = {}
+        if chain_file.exists():
+            chain_data = json.loads(chain_file.read_text())
+            for block in chain_data.get("chain", []):
+                chain_sigs[block.get("adr_id")] = block.get("signatures", [])
+
+        total_errors = 0
+        total_warnings = 0
+
+        for adr_file in adr_files:
+            fm = _parse_adr_frontmatter(str(adr_file))
+            if not fm:
+                continue
+
+            adr_id = fm.get("id", adr_file.stem)
+            governance = fm.get("governance", {})
+            scope = fm.get("scope", {})
+            signatures = chain_sigs.get(adr_id, [])
+
+            results = engine.validate_acceptance(
+                adr_id=adr_id,
+                classification=governance.get("classification", fm.get("classification", "minor")),
+                context=fm.get("context", ""),
+                decision=fm.get("decision", ""),
+                compliance_tags=governance.get("compliance_tags", fm.get("compliance_tags", [])),
+                projects=scope.get("projects", fm.get("projects", [])),
+                sections=[],
+                signatures=signatures,
+                actor="validate-all",
+                audit=False,
+            )
+
+            failures = [r for r in results if not r.passed and r.severity == "error"]
+            warnings = [r for r in results if not r.passed and r.severity == "warning"]
+
+            if failures or warnings:
+                print(f"\n{adr_id}:")
+                for r in results:
+                    if not r.passed:
+                        symbol = "WARN" if r.severity == "warning" else "FAIL"
+                        print(f"  [{symbol}] {r.contract_name}: {r.reason}")
+                total_errors += len(failures)
+                total_warnings += len(warnings)
+
+        print(f"\nValidated {len(adr_files)} ADRs: {total_errors} error(s), {total_warnings} warning(s)")
+
+        if total_errors > 0 and args.mode == "strict":
+            sys.exit(1)
 
     elif args.command == "audit":
         summary = engine.audit_summary()

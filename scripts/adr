@@ -804,7 +804,47 @@ cmd_supersede() {
         log_error "ADR novo não encontrado: $new_id"
         exit 1
     fi
-    
+
+    # Governance check: verify lifecycle transition is allowed
+    local chain_dir="${ADR_ROOT}/.chain"
+    if [[ -f "${chain_dir}/governance_engine.py" ]]; then
+        log_info "Verificando governança para supersede..."
+
+        # Check that the caller has architect role (required for supersede)
+        local actor
+        actor=$(git config user.name 2>/dev/null || echo "unknown")
+        local actor_role
+        actor_role=$(python3.13 -c "
+import json, sys
+from pathlib import Path
+keys_dir = Path('${chain_dir}/keys')
+pub = keys_dir / '${actor}.pub'
+if pub.exists():
+    data = json.loads(pub.read_text())
+    print(data.get('role', ''))
+else:
+    print('')
+" 2>/dev/null) || true
+
+        if [[ -z "$actor_role" ]]; then
+            log_error "Signer '${actor}' não tem chave registrada em .chain/keys/"
+            log_error "Execute: adr keygen --name ${actor} --role architect"
+            exit 1
+        fi
+
+        if [[ "$actor_role" != "architect" && "$actor_role" != "security_lead" ]]; then
+            log_error "Role '${actor_role}' não tem permissão para supersede (requer: architect ou security_lead)"
+            exit 1
+        fi
+
+        # Validate lifecycle transition
+        if ! python3.13 "${chain_dir}/governance_engine.py" check-transition accepted superseded 2>&1; then
+            log_error "Transição accepted → superseded bloqueada pela governança"
+            exit 1
+        fi
+        log_success "Governança OK (actor=${actor}, role=${actor_role})"
+    fi
+
     # Update old ADR
     sed -i 's/^status:.*/status: superseded/' "$old_path"
     sed -i "s/superseded_by:.*/superseded_by: \"${new_id}\"/" "$old_path"
