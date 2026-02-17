@@ -1,0 +1,53 @@
+{
+  "version": "1.0",
+  "total_proofs": 2,
+  "pending_count": 2,
+  "verified_count": 0,
+  "proofs": [
+    {
+      "proof_id": "ts_0001",
+      "target_type": "snapshot",
+      "target_id": "snapshot_0001",
+      "target_hash": "75172bcdb8654d878826a774f81ece4c5039ee22b4a25dde56b3c5fb279dfb50",
+      "ots_file": "timestamps/hash_ts_0001.txt.ots",
+      "status": "pending",
+      "created_at": "2026-02-17T15:14:38-0200",
+      "upgraded_at": null,
+      "verified_at": null,
+      "bitcoin_block": null,
+      "calendar_urls": [
+        "Submitting to remote calendar https://a.pool.opentimestamps.org",
+        "Submitting to remote calendar https://b.pool.opentimestamps.org",
+        "Submitting to remote calendar https://a.pool.eternitywall.com",
+        "Submitting to remote calendar https://ots.btc.catallaxy.com"
+      ],
+      "metadata": {
+        "chain_height": 22,
+        "merkle_root": "57a418fa8e0a9e6796b550e736cae44a"
+      }
+    },
+    {
+      "proof_id": "ts_0002",
+      "target_type": "merkle_root",
+      "target_id": "merkle_current",
+      "target_hash": "57a418fa8e0a9e6796b550e736cae44a3fd734c08735cdb3fb6795cf12a4e445",
+      "ots_file": "timestamps/hash_ts_0002.txt.ots",
+      "status": "pending",
+      "created_at": "2026-02-17T15:14:50-0200",
+      "upgraded_at": null,
+      "verified_at": null,
+      "bitcoin_block": null,
+      "calendar_urls": [
+        "Submitting to remote calendar https://a.pool.opentimestamps.org",
+        "Submitting to remote calendar https://b.pool.opentimestamps.org",
+        "Submitting to remote calendar https://a.pool.eternitywall.com",
+        "Submitting to remote calendar https://ots.btc.catallaxy.com"
+      ],
+      "metadata": {
+        "leaf_count": 21,
+        "tree_depth": 0
+      }
+    }
+  ],
+  "last_anchor": "2026-02-17T15:14:50-0200"
+}
