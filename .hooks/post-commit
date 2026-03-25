@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Post-Commit Hook - Feature Detection System
+# =============================================================================
+# Detects new features introduced in commits and validates documentation.
+# Prevents "ghost features" that exist in code but are undocumented.
+#
+# STF Directive: STF-C004 (Ghost Feature Prevention)
+# ADR: ADR-0002 (AI Assistant Hub & Ranking System)
+# =============================================================================
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Configuration
+REPO_ROOT=$(git rev-parse --show-toplevel)
+HOOK_DIR="${REPO_ROOT}/.hooks"
+FEATURE_DETECTOR="${HOOK_DIR}/feature_detector.py"
+FEATURE_LOG="${REPO_ROOT}/.feature_tracking.json"
+MIN_CONFIDENCE=0.7  # Minimum confidence to trigger warning
+
+# Get commit info
+COMMIT_HASH=$(git rev-parse HEAD)
+COMMIT_MSG=$(git log -1 --pretty=%B)
+COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "$COMMIT_HASH")
+
+echo -e "${BLUE}[Feature Detection]${NC} Analyzing commit $COMMIT_HASH"
+
+# Skip if no Python available
+if ! command -v python3 &>/dev/null; then
+    echo -e "${YELLOW}[WARN]${NC} Python3 not available, skipping feature detection"
+    exit 0
+fi
+
+# Skip if feature detector not present
+if [[ ! -f "$FEATURE_DETECTOR" ]]; then
+    echo -e "${YELLOW}[WARN]${NC} Feature detector not found, skipping"
+    exit 0
+fi
+
+# Run feature detection
+DETECTION_OUTPUT=$(python3 "$FEATURE_DETECTOR" \
+    --commit "$COMMIT_HASH" \
+    --files "$CHANGED_FILES" \
+    --log "$FEATURE_LOG" \
+    --min-confidence "$MIN_CONFIDENCE" 2>&1) || true
+
+# Parse output
+if echo "$DETECTION_OUTPUT" | grep -q "FEATURE_DETECTED"; then
+    echo -e "${YELLOW}[⚠ FEATURE DETECTED]${NC}"
+    echo "$DETECTION_OUTPUT"
+
+    # Check if documented
+    if echo "$DETECTION_OUTPUT" | grep -q "UNDOCUMENTED"; then
+        echo -e ""
+        echo -e "${RED}╔═══════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${RED}║            🚨 GHOST FEATURE ALERT 🚨                          ║${NC}"
+        echo -e "${RED}╚═══════════════════════════════════════════════════════════════╝${NC}"
+        echo -e ""
+        echo -e "${YELLOW}A new feature was detected but is not documented:${NC}"
+        echo -e ""
+        echo "$DETECTION_OUTPUT" | grep "Feature:"
+        echo -e ""
+        echo -e "${YELLOW}STF Directive STF-C004 requires:${NC}"
+        echo -e "  1. ${GREEN}Update README.md${NC} with feature description"
+        echo -e "  2. ${GREEN}Create ADR${NC} if architectural impact (adr new -t \"...\")"
+        echo -e "  3. ${GREEN}Add to feature index${NC} or changelog"
+        echo -e "  4. ${GREEN}Ensure tests${NC} validate the feature"
+        echo -e ""
+        echo -e "${BLUE}Next steps:${NC}"
+        echo -e "  # Document the feature"
+        echo -e "  vim README.md"
+        echo -e ""
+        echo -e "  # Or create an ADR"
+        echo -e "  ./scripts/adr new -t \"Your Feature Name\""
+        echo -e ""
+        echo -e "${YELLOW}Commit will proceed, but manual review is required.${NC}"
+        echo -e ""
+
+        # Log to feature tracking
+        echo "$DETECTION_OUTPUT" >> "${REPO_ROOT}/.undocumented_features.log"
+    else
+        echo -e "${GREEN}[✓]${NC} Feature is documented"
+    fi
+else
+    echo -e "${GREEN}[✓]${NC} No significant features detected"
+fi
+
+# Always allow commit (non-blocking by default)
+# To make blocking, change exit 0 to exit 1 when UNDOCUMENTED
+exit 0

@@ -1,0 +1,354 @@
+{
+  "version": "1.0",
+  "format": "adr-ledger-sbom-1.0",
+  "serial_number": "urn:uuid:1fd5ddd3-bebe-4517-b983-5b50eb053a0b",
+  "timestamp": "2026-02-14T17:34:19-0200",
+  "components": [
+    {
+      "name": "flake-utils",
+      "version": "11707dc2f618",
+      "type": "nix-input",
+      "purl": "pkg:github/numtide/flake-utils@11707dc2f618dd54ca8739b309ec4fc024de578b",
+      "hash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+      "license": "MIT",
+      "source": "flake.lock",
+      "adr_reference": "ADR-0005",
+      "adr_justification": "Nix flake multi-system",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b"
+      }
+    },
+    {
+      "name": "systems",
+      "version": "da67096a3b9b",
+      "type": "nix-input",
+      "purl": "pkg:github/nix-systems/default@da67096a3b9bf56a91d16901293e51ba5b49a27e",
+      "hash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+      "license": "MIT",
+      "source": "flake.lock",
+      "adr_reference": "ADR-0005",
+      "adr_justification": "Transitive dependency of flake-utils",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "parent": "flake-utils"
+      }
+    },
+    {
+      "name": "nixpkgs",
+      "version": "nixos-unstable",
+      "type": "nix-input",
+      "purl": "pkg:github/NixOS/nixpkgs@a82ccc39b39b621151d6732718e3e250109076fa",
+      "hash": "sha256-gf2AmWVTs8lEq7z/3ZAsgnZDhWIckkb+ZnAo5RzSxJg=",
+      "license": "MIT",
+      "source": "flake.lock",
+      "adr_reference": "ADR-0005",
+      "adr_justification": "NixOS como base declarativa",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "a82ccc39b39b621151d6732718e3e250109076fa"
+      }
+    },
+    {
+      "name": "pyyaml",
+      "version": "nixpkgs-pinned",
+      "type": "python-pkg",
+      "purl": "pkg:pypi/pyyaml",
+      "hash": "",
+      "license": "unknown",
+      "source": "flake.nix",
+      "adr_reference": "ADR-0006",
+      "adr_justification": "YAML frontmatter parsing",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {}
+    },
+    {
+      "name": "pynacl",
+      "version": "nixpkgs-pinned",
+      "type": "python-pkg",
+      "purl": "pkg:pypi/pynacl",
+      "hash": "",
+      "license": "unknown",
+      "source": "flake.nix",
+      "adr_reference": "ADR-0032",
+      "adr_justification": "Ed25519 para decision chain",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {}
+    },
+    {
+      "name": "jsonschema",
+      "version": "nixpkgs-pinned",
+      "type": "python-pkg",
+      "purl": "pkg:pypi/jsonschema",
+      "hash": "",
+      "license": "unknown",
+      "source": "flake.nix",
+      "adr_reference": "ADR-0006",
+      "adr_justification": "Schema validation",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {}
+    },
+    {
+      "name": "url",
+      "version": "nixpkgs-pinned",
+      "type": "system-tool",
+      "purl": "pkg:nix/url",
+      "hash": "",
+      "license": "unknown",
+      "source": "flake.nix",
+      "adr_reference": "UNTRACKED",
+      "adr_justification": "",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {}
+    },
+    {
+      "name": "python313",
+      "version": "nixpkgs-pinned",
+      "type": "system-tool",
+      "purl": "pkg:nix/python313",
+      "hash": "",
+      "license": "unknown",
+      "source": "flake.nix",
+      "adr_reference": "UNTRACKED",
+      "adr_justification": "",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {}
+    },
+    {
+      "name": "check-jsonschema",
+      "version": "nixpkgs-pinned",
+      "type": "system-tool",
+      "purl": "pkg:nix/check-jsonschema",
+      "hash": "",
+      "license": "unknown",
+      "source": "flake.nix",
+      "adr_reference": "ADR-0006",
+      "adr_justification": "CLI schema validation",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {}
+    },
+    {
+      "name": "yamllint",
+      "version": "nixpkgs-pinned",
+      "type": "system-tool",
+      "purl": "pkg:nix/yamllint",
+      "hash": "",
+      "license": "unknown",
+      "source": "flake.nix",
+      "adr_reference": "ADR-0006",
+      "adr_justification": "YAML governance validation",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {}
+    },
+    {
+      "name": "jq",
+      "version": "nixpkgs-pinned",
+      "type": "system-tool",
+      "purl": "pkg:nix/jq",
+      "hash": "",
+      "license": "unknown",
+      "source": "flake.nix",
+      "adr_reference": "ADR-0006",
+      "adr_justification": "JSON processing",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {}
+    },
+    {
+      "name": "graphviz",
+      "version": "nixpkgs-pinned",
+      "type": "system-tool",
+      "purl": "pkg:nix/graphviz",
+      "hash": "",
+      "license": "unknown",
+      "source": "flake.nix",
+      "adr_reference": "ADR-0006",
+      "adr_justification": "Knowledge graph visualization",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {}
+    },
+    {
+      "name": "git",
+      "version": "nixpkgs-pinned",
+      "type": "system-tool",
+      "purl": "pkg:nix/git",
+      "hash": "",
+      "license": "unknown",
+      "source": "flake.nix",
+      "adr_reference": "ADR-0001",
+      "adr_justification": "Git como sistema operacional",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {}
+    },
+    {
+      "name": "chain_manager",
+      "version": "a10d87a756cb",
+      "type": "internal-module",
+      "purl": "pkg:adr-ledger/.chain/chain_manager.py",
+      "hash": "a10d87a756cb9691ea3dcfbc8d0823fe3aa7a6258225dba8504961cca8e38b8f",
+      "license": "MIT",
+      "source": "chain",
+      "adr_reference": "ADR-0032",
+      "adr_justification": "Chain module: chain_manager",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "path": ".chain/chain_manager.py",
+        "size": 19614
+      }
+    },
+    {
+      "name": "crypto",
+      "version": "1feeb201a2be",
+      "type": "internal-module",
+      "purl": "pkg:adr-ledger/.chain/crypto.py",
+      "hash": "1feeb201a2be06da5e05d42ad6c0261a6eb7aece6e18d060bea759a5c5468987",
+      "license": "MIT",
+      "source": "chain",
+      "adr_reference": "ADR-0032",
+      "adr_justification": "Chain module: crypto",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "path": ".chain/crypto.py",
+        "size": 9661
+      }
+    },
+    {
+      "name": "economics",
+      "version": "c005f7c89373",
+      "type": "internal-module",
+      "purl": "pkg:adr-ledger/.chain/economics.py",
+      "hash": "c005f7c893735d207560748a9a899237b076f140e98ff79f4418f4908c5997db",
+      "license": "MIT",
+      "source": "chain",
+      "adr_reference": "ADR-0032",
+      "adr_justification": "Chain module: economics",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "path": ".chain/economics.py",
+        "size": 14714
+      }
+    },
+    {
+      "name": "federation",
+      "version": "c5327ec5b9c5",
+      "type": "internal-module",
+      "purl": "pkg:adr-ledger/.chain/federation.py",
+      "hash": "c5327ec5b9c53fab0a022ea76d88ec435c25eb011b09d479946590c8de20eb65",
+      "license": "MIT",
+      "source": "chain",
+      "adr_reference": "ADR-0032",
+      "adr_justification": "Chain module: federation",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "path": ".chain/federation.py",
+        "size": 15419
+      }
+    },
+    {
+      "name": "governance_engine",
+      "version": "607b002e1eef",
+      "type": "internal-module",
+      "purl": "pkg:adr-ledger/.chain/governance_engine.py",
+      "hash": "607b002e1eefd9807c0261770a5f3c0a17319f766147a830eae157a89d5f1e5a",
+      "license": "MIT",
+      "source": "chain",
+      "adr_reference": "ADR-0032",
+      "adr_justification": "Chain module: governance_engine",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "path": ".chain/governance_engine.py",
+        "size": 22189
+      }
+    },
+    {
+      "name": "merkle_tree",
+      "version": "076a653c0dd6",
+      "type": "internal-module",
+      "purl": "pkg:adr-ledger/.chain/merkle_tree.py",
+      "hash": "076a653c0dd6d796cad5b32c499c6b9e8ada848f2f8d2c6639ce01cdd64aa631",
+      "license": "MIT",
+      "source": "chain",
+      "adr_reference": "ADR-0032",
+      "adr_justification": "Chain module: merkle_tree",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "path": ".chain/merkle_tree.py",
+        "size": 10670
+      }
+    },
+    {
+      "name": "provenance",
+      "version": "65063739118e",
+      "type": "internal-module",
+      "purl": "pkg:adr-ledger/.chain/provenance.py",
+      "hash": "65063739118e3ff78c526412c0dd5e800d8cfc802cf264d9109434aa93a6c807",
+      "license": "MIT",
+      "source": "chain",
+      "adr_reference": "ADR-0032",
+      "adr_justification": "Chain module: provenance",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "path": ".chain/provenance.py",
+        "size": 12125
+      }
+    },
+    {
+      "name": "sbom_manager",
+      "version": "1524ea031b39",
+      "type": "internal-module",
+      "purl": "pkg:adr-ledger/.chain/sbom_manager.py",
+      "hash": "1524ea031b3966f51cca141b9832b5f0fdd07e75b184d5882406c90a61537155",
+      "license": "MIT",
+      "source": "chain",
+      "adr_reference": "ADR-0033",
+      "adr_justification": "Core SBOM generation, verification and CycloneDX export",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "path": ".chain/sbom_manager.py",
+        "size": 29791
+      }
+    },
+    {
+      "name": "snapshot_manager",
+      "version": "a6f688368df6",
+      "type": "internal-module",
+      "purl": "pkg:adr-ledger/.chain/snapshot_manager.py",
+      "hash": "a6f688368df66821c7db459caf99100c5504716b2cece908d4d1b9ab7f752f93",
+      "license": "MIT",
+      "source": "chain",
+      "adr_reference": "ADR-0032",
+      "adr_justification": "Chain module: snapshot_manager",
+      "first_seen": "2026-02-14T17:34:19-0200",
+      "metadata": {
+        "path": ".chain/snapshot_manager.py",
+        "size": 13280
+      }
+    }
+  ],
+  "metadata": {
+    "tool": "adr-ledger-sbom-manager",
+    "repo": "/home/kernelcore/master/adr-ledger",
+    "total_components": 22,
+    "by_type": {
+      "nix-input": 3,
+      "python-pkg": 3,
+      "system-tool": 7,
+      "internal-module": 9
+    }
+  },
+  "sbom_hash": "fd641a4e07c0661d1a8ec31d11f5e29a1694e4014cb07ea2162f6bd5e250b1dc",
+  "signature": {
+    "signer_id": "pina",
+    "public_key": "jIDMf08NgVSYQgU0q5PqFoE6fOSJ6SzVBp2ASYr2PW0=",
+    "signature": "pBbaHyZpWLRrb8pEYe4GmqHBY7dtaeDqaOk4+tyJCGjPmkxC7V0TWaoAAHuE31B88KrH6b6cMXESBsseAy9ZAw==",
+    "timestamp": "2026-02-14T17:34:19-0200",
+    "role": "architect"
+  },
+  "previous_sbom_hash": "91cc12eff8a45cca09b222861fc313e6d039cc9f65fa6ac079e3c7d0a737064a"
+}

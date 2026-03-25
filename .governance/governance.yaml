@@ -1,0 +1,396 @@
+# =============================================================================
+# GOVERNANCE AS CODE - ADR Ledger
+# =============================================================================
+# Este arquivo define as regras de governança para decisões arquiteturais.
+# É parseado pelos agentes para enforcar compliance automaticamente.
+# =============================================================================
+
+meta:
+  version: "1.0.0"
+  schema: "https://pina.voidnx/schemas/governance/v1"
+  last_updated: "2026-01-10"
+  maintainer: "pina"
+
+# =============================================================================
+# ROLES & PERMISSIONS
+# =============================================================================
+roles:
+  architect:
+    description: "Decisões de arquitetura de alto nível"
+    permissions:
+      - propose_adr
+      - review_adr
+      - approve_critical
+      - approve_major
+      - approve_minor
+      - supersede_adr
+
+  engineer:
+    description: "Implementação e decisões técnicas"
+    permissions:
+      - propose_adr
+      - review_adr
+      - approve_minor
+      - approve_patch
+
+  security_lead:
+    description: "Decisões de segurança e compliance"
+    permissions:
+      - propose_adr
+      - review_adr
+      - approve_critical # only for security-tagged ADRs
+      - veto_security_risk
+      - require_security_review
+
+  agent:
+    description: "Agentes AI (CEREBRO, SPECTRE, etc)"
+    permissions:
+      - read_adr
+      - query_knowledge
+      - suggest_adr # can propose but requires human approval
+      - report_inconsistency
+
+# =============================================================================
+# APPROVAL MATRIX
+# =============================================================================
+# Quem pode aprovar o quê, baseado na classificação
+approval_matrix:
+  critical:
+    required_approvers: 2
+    required_roles:
+      - architect
+      - security_lead
+    timeout_days: 7
+    auto_reject_on_timeout: false
+    escalation_path: "architect → external_review"
+
+  major:
+    required_approvers: 1
+    required_roles:
+      - architect
+      - security_lead
+    timeout_days: 5
+    auto_reject_on_timeout: false
+
+  minor:
+    required_approvers: 1
+    required_roles:
+      - architect
+      - engineer
+    timeout_days: 3
+    auto_reject_on_timeout: false
+
+  patch:
+    required_approvers: 1
+    required_roles:
+      - engineer
+    timeout_days: 1
+    auto_approve_on_timeout: true # auto-aprova se não houver objeção
+
+# =============================================================================
+# LIFECYCLE RULES
+# =============================================================================
+lifecycle:
+  states:
+    proposed:
+      description: "Aguardando revisão e aprovação"
+      allowed_transitions:
+        - accepted
+        - rejected
+      max_duration_days: 14
+      on_timeout: "notify_and_extend"
+
+    accepted:
+      description: "Decisão ativa e em vigor"
+      allowed_transitions:
+        - deprecated
+        - superseded
+      requires_implementation_by: 30 # dias
+
+    rejected:
+      description: "Decisão rejeitada com justificativa"
+      allowed_transitions: [] # terminal state
+      archive_after_days: 90
+
+    deprecated:
+      description: "Marcada para remoção futura"
+      allowed_transitions:
+        - superseded
+      grace_period_days: 30
+      notify_dependents: true
+
+    superseded:
+      description: "Substituída por outra decisão"
+      allowed_transitions: [] # terminal state
+      requires_superseding_adr: true
+
+# =============================================================================
+# COMPLIANCE RULES
+# =============================================================================
+compliance:
+  # ADRs que afetam dados pessoais precisam de tag LGPD
+  lgpd:
+    trigger_keywords:
+      - "dados pessoais"
+      - "personal data"
+      - "PII"
+      - "user data"
+      - "consent"
+    required_tags:
+      - "LGPD"
+    required_sections:
+      - "data_retention"
+      - "legal_basis"
+    required_reviewer_role: "security_lead"
+
+  # ADRs de segurança
+  security:
+    trigger_keywords:
+      - "authentication"
+      - "encryption"
+      - "secrets"
+      - "credentials"
+      - "access control"
+      - "vulnerability"
+    required_tags:
+      - "SECURITY"
+    threat_model_required: true
+    required_reviewer_role: "security_lead"
+
+  # ADRs de infraestrutura crítica
+  infrastructure:
+    trigger_keywords:
+      - "database"
+      - "kubernetes"
+      - "production"
+      - "deployment"
+      - "availability"
+    required_tags:
+      - "INFRA"
+    rollback_plan_required: true
+
+# =============================================================================
+# PROJECT-SPECIFIC RULES
+# =============================================================================
+projects:
+  SPECTRE:
+    description: "Sentiment & Pattern Extraction Engine"
+    owners: ["pina"]
+    default_classification: "major"
+    required_tags: ["ML", "NLP"]
+    auto_notify:
+      - cerebro # CEREBRO needs to know about SPECTRE changes
+
+  PHANTOM:
+    description: "ML Classifier Framework & ETL Pipeline"
+    owners: ["pina"]
+    default_classification: "major"
+    required_tags: ["ML", "DATA"]
+    dependencies:
+      - SPECTRE # uses SPECTRE for feature extraction
+
+  CEREBRO:
+    description: "RAG Knowledge System"
+    owners: ["pina"]
+    default_classification: "critical" # core knowledge layer
+    required_tags: ["RAG", "KNOWLEDGE"]
+    special_rules:
+      - "all_adrs_auto_ingest" # CEREBRO ingests all accepted ADRs
+      - "semantic_index_required"
+
+  NEUTRON:
+    description: "Core Infrastructure Layer"
+    owners: ["pina"]
+    default_classification: "critical"
+    required_tags: ["INFRA", "CORE"]
+    special_rules:
+      - "requires_rollback_plan"
+      - "staging_validation_required"
+
+  IntelSense:
+    description: "Security Operations Tier & Intelligence Gathering (OSINT/SIGINT)"
+    owners: ["pina", "security_lead"]
+    default_classification: "major"
+    required_tags: ["SECURITY", "OSINT"]
+    special_rules:
+      - "requires_security_review"
+      - "sandbox_execution_mandatory"
+      - "threat_model_required"
+    scope_definition:
+      - "spider-nix (OSINT Framework)"
+      - "Threat Intelligence Feeds"
+      - "Vulnerability Scanners"
+
+# =============================================================================
+# AUTOMATION HOOKS
+# =============================================================================
+automation:
+  on_adr_proposed:
+    - validate_schema
+    - check_id_uniqueness
+    - check_compliance_triggers
+    - notify_required_reviewers
+    - create_review_task
+
+  on_adr_accepted:
+    - move_to_accepted_folder
+    - update_knowledge_index
+    - trigger_cerebro_ingestion
+    - notify_dependent_projects
+    - create_implementation_tasks
+
+  on_adr_superseded:
+    - link_bidirectional
+    - update_knowledge_graph
+    - notify_affected_systems
+    - archive_old_embeddings
+
+  scheduled:
+    daily:
+      - check_stale_proposals
+      - check_implementation_deadlines
+    weekly:
+      - generate_adr_report
+      - check_auto_supersede_candidates
+    monthly:
+      - full_knowledge_reindex
+      - governance_compliance_audit
+
+# =============================================================================
+# AGENT INTEGRATION
+# =============================================================================
+agent_permissions:
+  CEREBRO:
+    can_read: ["*"] # all ADRs
+    can_query: ["knowledge_extraction", "relations", "scope"]
+    can_suggest: true
+    auto_ingest: true
+    embedding_model: "text-embedding-3-large"
+
+  SPECTRE:
+    can_read: ["scope.projects contains 'SPECTRE'"]
+    can_query: ["consequences", "implementation"]
+    can_analyze_sentiment: true # meta-analysis of decisions
+
+  PHANTOM:
+    can_read: ["scope.projects contains 'PHANTOM'"]
+    can_query: ["implementation", "dependencies"]
+    can_classify: true # auto-classification of new ADRs
+
+  NEUTRON:
+    can_read: ["scope.layers contains 'infrastructure'"]
+    can_query: ["implementation", "risks"]
+    can_enforce: true # can block deployments that violate ADRs
+
+# =============================================================================
+# KNOWLEDGE GRAPH RULES
+# =============================================================================
+knowledge_graph:
+  nodes:
+    - type: "adr"
+      properties: ["id", "title", "status", "scope"]
+    - type: "project"
+      properties: ["name", "description", "owners"]
+    - type: "concept"
+      properties: ["name", "definition"]
+    - type: "question"
+      properties: ["text", "answered_by"]
+
+  edges:
+    - type: "supersedes"
+      from: "adr"
+      to: "adr"
+    - type: "relates_to"
+      from: "adr"
+      to: "adr"
+    - type: "belongs_to"
+      from: "adr"
+      to: "project"
+    - type: "answers"
+      from: "adr"
+      to: "question"
+    - type: "defines"
+      from: "adr"
+      to: "concept"
+
+  traversal_rules:
+    max_depth: 5
+    include_deprecated: false
+    weight_by_recency: true
+
+# =============================================================================
+# DECISION CHAIN (PRIVATE BLOCKCHAIN)
+# =============================================================================
+chain:
+  enabled: true
+  version: "1.0"
+
+  # Require Ed25519 signatures on chain blocks
+  require_signatures: true
+  signature_requirements:
+    critical: 2   # architect + security_lead
+    major: 1      # architect OR security_lead
+    minor: 1      # architect OR engineer
+    patch: 1      # engineer
+
+  # Merkle tree for inclusion proofs
+  merkle_tree:
+    enabled: true
+    rebuild_on_accept: true
+
+  # Temporal anchoring (external proof of existence)
+  timestamp_anchoring:
+    enabled: true
+    method: "opentimestamps"
+    anchor_on_accept: true
+    anchor_frequency: "weekly"
+
+  # Cryptographic state snapshots
+  snapshots:
+    enabled: true
+    create_on_accept: true
+    sign_snapshots: true
+
+  # Smart governance contracts
+  governance_contracts:
+    enabled: true
+    mode: "enforce"                # enforce | warn | audit
+    pre_acceptance_validation: true
+    post_acceptance_verification: true
+    audit_log: true
+
+  # Decision provenance tracking
+  provenance:
+    enabled: true
+    auto_track_acceptance: true
+    auto_track_proposal: true
+    require_signatures: false
+
+  # Decision economics / quality metrics
+  economics:
+    enabled: true
+    compute_on_sync: true
+    quality_threshold: 0.4         # Warn below this score
+
+  # Federation (cross-org sharing)
+  federation:
+    enabled: false                 # Enable when peers are configured
+    auto_export_topics: []
+    trust_model: "explicit"        # explicit | web_of_trust
+
+  # Supply chain SBOM governance
+  supply_chain:
+    enabled: true
+    version: "1.0"
+    sbom:
+      format: "cyclonedx-1.6"
+      auto_generate_on_accept: true
+      sign_sbom: true
+    dependency_rules:
+      require_adr_reference: true
+      critical_types: [nix-input]
+      review_required_for: [new_dependency, version_major_bump]
+    drift_detection:
+      enabled: true
+      check_on_commit: true
+      max_untracked_deps: 0

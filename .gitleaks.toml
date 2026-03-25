@@ -1,0 +1,24 @@
+# Gitleaks configuration for ADR Ledger
+# https://github.com/gitleaks/gitleaks
+
+title = "ADR Ledger Gitleaks Config"
+
+[allowlist]
+  description = "Allowlist for known safe patterns in this repo"
+
+  # Public keys and lock files are not secrets
+  paths = [
+    '''.chain/keys/.*\.pub''',
+    '''flake\.lock''',
+  ]
+
+  # ADR documents and governance files may reference "token" or "key"
+  # as architectural concepts, not as credential values
+  regexes = [
+    '''compliance_tags.*TOKEN''',
+    '''questions_answered.*token''',
+    # Chain block hashes and Merkle hashes (SHA-256 hex strings)
+    '''"(block|content|merkle|parent)_hash":\s*"[0-9a-f]{64}"''',
+    # Ed25519 public keys in chain JSON (64-byte hex = 128 hex chars)
+    '''"public_key":\s*"[0-9a-f]{128}"''',
+  ]

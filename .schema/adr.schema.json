@@ -1,0 +1,344 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://pina.dev/schemas/adr/v1",
+  "title": "Architecture Decision Record Schema",
+  "description": "Schema for AST-parseable ADRs - Knowledge as Law for Intelligent Systems",
+  "type": "object",
+  "required": ["id", "title", "status", "date", "context", "decision", "consequences"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ADR-[0-9]{4}$",
+      "description": "Unique identifier (ADR-0001 format)"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 100,
+      "description": "Concise decision title"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["proposed", "accepted", "rejected", "deprecated", "superseded"],
+      "description": "Current lifecycle state"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Decision date (YYYY-MM-DD)"
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "role": { "type": "string" },
+          "github": { "type": "string" }
+        }
+      }
+    },
+    "reviewers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of reviewers who approved"
+    },
+    "governance": {
+      "type": "object",
+      "description": "Governance metadata for audit trails",
+      "properties": {
+        "classification": {
+          "type": "string",
+          "enum": ["critical", "major", "minor", "patch"],
+          "description": "Impact level"
+        },
+        "requires_approval_from": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Roles/people required to approve"
+        },
+        "compliance_tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "LGPD, SOC2, ISO27001, SECURITY, OSINT, SEC_OPS"
+        },
+        "review_deadline": {
+          "type": "string",
+          "format": "date"
+        },
+        "auto_supersede_after": {
+          "type": "string",
+          "pattern": "^[0-9]+[dwmy]$",
+          "description": "Auto-review period (30d, 6m, 1y)"
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "description": "Where this decision applies",
+      "properties": {
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["SPECTRE", "PHANTOM", "CEREBRO", "NEUTRON", "GLOBAL", "IntelSense"]
+          }
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["infrastructure", "data", "ml", "api", "security", "governance"]
+          }
+        },
+        "environments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["development", "staging", "production", "all"]
+          }
+        }
+      }
+    },
+    "context": {
+      "type": "string",
+      "minLength": 50,
+      "description": "Problem statement and background"
+    },
+    "decision": {
+      "type": "string",
+      "minLength": 50,
+      "description": "What we decided to do"
+    },
+    "rationale": {
+      "type": "object",
+      "properties": {
+        "drivers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Key factors that drove this decision"
+        },
+        "alternatives_considered": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "option": { "type": "string" },
+              "pros": { "type": "array", "items": { "type": "string" } },
+              "cons": { "type": "array", "items": { "type": "string" } },
+              "why_rejected": { "type": "string" }
+            }
+          }
+        },
+        "trade_offs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "consequences": {
+      "type": "object",
+      "required": ["positive", "negative"],
+      "properties": {
+        "positive": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "negative": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "risk": { "type": "string" },
+              "probability": { "type": "string", "enum": ["low", "medium", "high"] },
+              "impact": { "type": "string", "enum": ["low", "medium", "high"] },
+              "mitigation": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "implementation": {
+      "type": "object",
+      "properties": {
+        "effort": {
+          "type": "string",
+          "enum": ["trivial", "small", "medium", "large", "epic"]
+        },
+        "timeline": { "type": "string" },
+        "dependencies": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Other ADRs this depends on"
+        },
+        "blocked_by": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "task": { "type": "string" },
+              "owner": { "type": "string" },
+              "status": { "type": "string", "enum": ["todo", "in_progress", "done", "blocked"] }
+            }
+          }
+        }
+      }
+    },
+    "relations": {
+      "type": "object",
+      "description": "Graph relationships for knowledge traversal",
+      "properties": {
+        "supersedes": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^ADR-[0-9]{4}$" }
+        },
+        "superseded_by": {
+          "type": "string",
+          "pattern": "^ADR-[0-9]{4}$"
+        },
+        "related_to": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^ADR-[0-9]{4}$" }
+        },
+        "implements": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "External specs/RFCs this implements"
+        },
+        "enables": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^ADR-[0-9]{4}$" },
+          "description": "ADRs that become possible because of this"
+        }
+      }
+    },
+    "knowledge_extraction": {
+      "type": "object",
+      "description": "Metadata for CEREBRO/RAG ingestion",
+      "properties": {
+        "keywords": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "concepts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "High-level concepts for semantic search"
+        },
+        "questions_answered": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Questions this ADR answers (for RAG retrieval)"
+        },
+        "embedding_priority": {
+          "type": "string",
+          "enum": ["critical", "high", "normal", "low"],
+          "description": "Priority for vector embedding updates"
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "description": "Immutable audit trail",
+      "properties": {
+        "created_at": { "type": "string", "format": "date-time" },
+        "last_modified": { "type": "string", "format": "date-time" },
+        "version": { "type": "integer", "minimum": 1 },
+        "changelog": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string", "format": "date-time" },
+              "author": { "type": "string" },
+              "change": { "type": "string" },
+              "commit_hash": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "chain": {
+      "type": "object",
+      "description": "Blockchain chain reference (auto-populated on acceptance)",
+      "properties": {
+        "block_number": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Block number in the decision chain"
+        },
+        "block_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA256 hash of the chain block"
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA256 hash of the complete ADR file content"
+        },
+        "merkle_root": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Merkle tree root hash at time of acceptance"
+        },
+        "signatures": {
+          "type": "array",
+          "description": "Ed25519 digital signatures from approvers",
+          "items": {
+            "type": "object",
+            "properties": {
+              "signer": { "type": "string" },
+              "role": { "type": "string", "enum": ["architect", "engineer", "security_lead", "agent"] },
+              "public_key": { "type": "string" },
+              "signature": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" }
+            },
+            "required": ["signer", "role", "timestamp"]
+          }
+        }
+      }
+    },
+    "supply_chain": {
+      "type": "object",
+      "description": "Supply chain dependency governance",
+      "properties": {
+        "dependencies_introduced": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "type": { "type": "string", "enum": ["nix-input", "python-pkg", "system-tool", "internal-module"] },
+              "justification": { "type": "string" }
+            },
+            "required": ["name", "type", "justification"]
+          }
+        },
+        "dependencies_removed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "sbom_impact": {
+          "type": "string",
+          "enum": ["none", "minor", "major", "critical"]
+        }
+      }
+    }
+  }
+}
