@@ -1,10 +1,14 @@
 # ADR Ledger — Livro Razão de Decisões Arquiteturais
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-alpha-orange.svg)]()
+[![Release](https://img.shields.io/badge/release-v0.0.1-brightgreen.svg)](https://github.com/marcosfpina/adr-ledger/releases/tag/v0.0.1)
+[![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![Nix](https://img.shields.io/badge/nix-flakes-5277C3.svg)](https://nixos.org/)
 
 Registro computável de decisões arquiteturais. Cada ADR é versionado em Git, validado por schema, e exportado como JSON para consumo por agentes de IA.
+
+> **Alpha** — O projeto está em fase Alpha. A camada blockchain e a CLI estão operacionais no ambiente Nix (plataforma primária), mas IAM/autenticação de aprovadores, Nix modules e suporte multiplataforma ainda estão em roadmap ativo. Não use em produção sem avaliação de risco.
 
 ## Por que existe
 
@@ -53,24 +57,101 @@ adr-ledger/
 
 ## Quick Start
 
+### NixOS / Nix
+
 ```bash
-# 1. Clone
+git clone https://github.com/marcosfpina/adr-ledger.git
+cd adr-ledger
+nix develop          # entra no devShell com todas as deps + CLI
+adr list
+adr new -t "Minha Decisão" -p CEREBRO -c major
+adr sync
+```
+
+### Linux (non-Nix)
+
+Requer: `bash`, `python3.13`, `pyyaml`, `pynacl`, `git`.
+
+```bash
 git clone https://github.com/marcosfpina/adr-ledger.git
 cd adr-ledger
 
-# 2. Setup CLI
-chmod +x scripts/adr
-export PATH="$PWD/scripts:$PATH"
+# Instalar deps Python
+pip install pyyaml pynacl
 
-# 3. Criar nova ADR
-adr new -t "Minha Decisão" -p CEREBRO -c major
+# Instalar CLI e git hooks
+bash scripts/install.sh
 
-# 4. Listar ADRs
+# Adicionar ao PATH (bash/zsh)
+echo 'export PATH="$HOME/adr-ledger/scripts:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+
+# Usar
 adr list
-
-# 5. Sincronizar knowledge base
+adr new -t "Minha Decisão" -p CEREBRO -c major
 adr sync
 ```
+
+Ou, sem instalar, direto do repo:
+
+```bash
+bash scripts/adr list
+bash scripts/validate.sh      # valida todos os ADRs
+```
+
+---
+
+## Suporte a Plataformas
+
+O ADR Ledger é desenvolvido primariamente no ecossistema Nix. O suporte a outras plataformas segue um roadmap incremental.
+
+| Plataforma | Status | Release alvo | Notas |
+|---|---|---|---|
+| **NixOS / Nix** | ✅ GA | **v0.0.1** | Integração completa via flake. Plataforma primária. |
+| **Linux (non-Nix)** | 🔧 Em andamento | v0.1.0 | `scripts/install.sh` funcional. Empacotamento `.deb` / `.rpm` / binário estático pendente. |
+| **macOS** | 🔄 Planejado | v0.1.0 | Homebrew tap (curto prazo). `nix-darwin` + Home Manager (recomendado). |
+| **Windows** | 🔄 Planejado | v0.2.0 | WSL2 no curto prazo. Suporte nativo (PowerShell + binário) no longo prazo. |
+
+### Instalação via Nix (recomendado)
+
+```bash
+# Direto do flake sem instalar
+nix run github:marcosfpina/adr-ledger -- list
+
+# Entrar no devShell com todas as deps
+nix develop github:marcosfpina/adr-ledger
+
+# Futuro: como NixOS module
+# services.adr-ledger.enable = true;  # ainda não disponível — ver roadmap
+```
+
+### Binário estático (v0.0.1)
+
+O release inicial `v0.0.1` disponibiliza um binário compilado para Linux x86_64. Disponível em [GitHub Releases](https://github.com/marcosfpina/adr-ledger/releases/tag/v0.0.1). Futuramente será submetido ao canal `nixpkgs` oficial.
+
+```bash
+# Linux x86_64
+curl -L https://github.com/marcosfpina/adr-ledger/releases/download/v0.0.1/adr-linux-x86_64 \
+  -o ~/.local/bin/adr && chmod +x ~/.local/bin/adr
+```
+
+### Nota de port — Linux non-Nix
+
+> **Para contribuidores:** A lógica operacional está em dois lugares: `scripts/adr` (bash CLI, ~1130 LOC — núcleo portável) e `flake.nix` (wrappers e checks como derivações Nix). Os scripts de instalação standalone já foram extraídos do flake para o port Linux não-Nix:
+
+| Componente | Situação no `flake.nix` | Script portável |
+|---|---|---|
+| `adr validate` — Python inline | Usava `${python.withPackages ...}/bin/python3` (Nix store) | ✅ `scripts/validate.sh` |
+| Gerador de git hooks | Escrevia `PYTHON=<nix-store-path>` no hook | ✅ `scripts/install-hooks.sh` |
+| `post-merge` / `post-commit` hooks | Chamavam `${adr-cli}/bin/adr sync` (Nix store) | ✅ Incluído em `scripts/install-hooks.sh` |
+| Setup inicial (deps + PATH + hooks) | Inexistente fora do Nix | ✅ `scripts/install.sh` |
+| `adr bash-cli` / `adr-bash` | Wrappavam `scripts/adr` via path Nix | ✅ `scripts/adr` já funciona standalone |
+| 9 `checks` do flake | Exclusivamente `nix build .#checks` (Nix sandbox) | `scripts/run-checks.sh` — pendente (v0.1.0) |
+| NixOS module (systemd) | Stub presente, incompleto | Pendente — fase Nix modules |
+
+O núcleo real (`scripts/adr`) já é portável — requer apenas `bash` + `python3.13` + `pyyaml` + `pynacl`. Os scripts de instalação foram criados para fechar o gap.
+
+Para instruções detalhadas por plataforma, ver [docs/PLATFORMS.md](docs/PLATFORMS.md).
 
 ---
 
@@ -448,20 +529,40 @@ knowledge_extraction:
 
 ## Roadmap
 
-### Phase 1: Foundation (concluída)
-- [x] Schema JSON, Parser AST, CLI, governança como código
+### v0.0.1 — Release inicial (NixOS / Nix) ← _em preparação_
+- [x] Schema JSON, Parser AST, CLI operacional
 - [x] Git hooks (pre-commit, post-commit)
 - [x] Export JSON/JSONL com filtering
-- [x] Knowledge fragments RAG-optimized
+- [x] Blockchain layer (provenance + imutabilidade)
+- [x] Assinatura criptográfica de ADRs (NaCl)
+- [x] MCP tools para Claude Code (21 ferramentas)
+- [x] CI/CD (GitHub Actions + Gitleaks)
+- [ ] Tag `v0.0.1` + binário Linux x86_64 no GitHub Releases
+- [ ] Submissão inicial ao `nixpkgs` oficial
 
-### Phase 2: Integration (concluída)
-- [x] Pipeline PHANTOM → CEREBRO → AI-Agent-OS
-- [x] MCP tools para Claude Code
-- [x] CI/CD (GitHub Actions)
+### Phase 3: Security & Integração (em andamento)
 
-### Phase 3: Advanced (em andamento)
-- [x] Blockchain layer para provenance e imutabilidade
-- [x] Assinatura criptográfica de ADRs
+**IAM — Identidade e Autorização** _(crítico — bloqueador para Beta)_
+- [ ] Registry de chaves por papel (`architect`, `security_lead`, etc.) vinculado a identidades GPG/SSH reais
+- [ ] Verificação criptográfica de aprovadores: só assina quem tem chave registrada no papel correspondente
+- [ ] RBAC declarativo em `governance.yaml` — papéis com chaves públicas vinculadas
+- [ ] Integração com GitHub Teams como fonte de verdade de papéis (OAuth device flow)
+- [ ] Audit trail imutável de aprovações com prova de identidade
+
+**Nix Ecosystem** _(lacuna crítica de integração)_
+- [ ] `NixOS module` — `services.adr-ledger.enable = true` com todas as opções configuráveis
+- [ ] `Home Manager module` — setup por usuário, sem root
+- [ ] Pacote no `nixpkgs` oficial (channel `unstable` → `stable`)
+- [ ] `nix-darwin` + Home Manager para macOS declarativo
+
+**Plataformas**
+- [x] Extrair lógica embarcada no `flake.nix` para scripts standalone — `scripts/install.sh`, `scripts/install-hooks.sh`, `scripts/validate.sh`
+- [ ] `scripts/run-checks.sh` — equivalente aos 9 checks Nix para CI não-Nix (v0.1.0)
+- [ ] Linux non-Nix: binário estático + `.deb` / `.rpm`
+- [ ] macOS: Homebrew tap
+- [ ] Windows: WSL2 (v0.1.x), nativo (v0.2.x)
+
+**Funcionalidades**
 - [ ] Real-time sync via webhooks
 - [ ] Temporal anchoring (OpenTimestamps/RFC3161)
 - [ ] Visualização avançada de grafo
@@ -470,7 +571,7 @@ knowledge_extraction:
 - [ ] Geração automática de ADRs a partir de commits
 - [ ] Análise preditiva de impacto
 - [ ] Detecção de anomalias (decisões conflitantes, policy drift)
-- [ ] Federação multi-repo
+- [ ] Federação multi-repo descentralizada (ADR-0049)
 
 ---
 
@@ -485,7 +586,7 @@ knowledge_extraction:
 
 ## License
 
-MIT — ver [LICENSE](LICENSE).
+Apache 2.0 — ver [LICENSE](LICENSE).
 
 ---
 
