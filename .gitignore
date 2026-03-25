@@ -50,3 +50,15 @@ ssh_sessions.db
 reports/*.dot
 reports/*.svg
 reports/*.html
+
+# Secrets & certificates
+.env
+.env.*
+.env.local
+*.pem
+*.p12
+*.pfx
+*.jks
+
+# Internal MCP config (contains local paths)
+.mcp.json
